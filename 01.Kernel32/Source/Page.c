@@ -43,6 +43,7 @@ void kInitializePageTables(void)
         // 최종 결과를 다시 4KB로 나누어 32비트 이상의 어드레스를 계산함
         kSetPageEntryData(&(pstPDEntry[i]), (i * (PAGE_DEFAULTSIZE >> 20)) >> 12, 
         dwMappingAddress, PAGE_FLAGS_DEFAULT | PAGE_FLAGS_PS, 0 );
+        dwMappingAddress += PAGE_DEFAULTSIZE;
     }
 }
 
