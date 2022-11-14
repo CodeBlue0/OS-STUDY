@@ -1,6 +1,8 @@
 #include <stdarg.h>
 #include "Console.h"
 #include "Keyboard.h"
+#include "Utility.h"
+#include "AssemblyUtility.h"
 
 // 콘솔의 정보를 관리하는 자료구조
 CONSOLEMANAGER gs_stConsoleManager = {0, };
@@ -111,8 +113,8 @@ int kConsolePrintString(const char* pcBuffer)
         if (iPrintOffset >= (CONSOLE_HEIGHT * CONSOLE_WIDTH))
         {
             // 가장 윗줄을 제외한 나머지를 한 줄 위로 복사
-            kMemSet(CONSOLE_VIDEOMEMORYADDRESS,
-                    CONSOLE_VIDEOMEMORYADDRESS + CONSOLE_WIDTH * sizeof(CHARCTER),
+            kMemCpy((CHARCTER *)CONSOLE_VIDEOMEMORYADDRESS,
+                    (CHARCTER *)(CONSOLE_VIDEOMEMORYADDRESS + CONSOLE_WIDTH * sizeof(CHARCTER)),
                     (CONSOLE_HEIGHT - 1) * CONSOLE_WIDTH * sizeof(CHARCTER));
             
             // 가장 마지막 라인은 공백으로 채움

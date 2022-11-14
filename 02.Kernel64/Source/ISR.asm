@@ -7,14 +7,14 @@ extern kCommonExceptionHandler, kCommonInterruptHandler, kKeyboardHandler
 
 ; C 언어에서 호출할 수 있도록 이름을 노출함(Export)
 ; 예외(Exception) 처리를 위한 ISR
-global kISRDivideError, kISRDebug, kISRNMI, kISRBreakPoint, kISROverflow,
-global kISRBoundRangeExceeded, kISRInvalidOpcode, kISRDeviceNotAvailable,
-global kISRDoubleFault, kISRCoprocessorSegmentOverrun, kISRInvalidTSS, 
-global kISRSegmentNotPresent, kISRStackSegmentFault, kISRGeneralProtection, 
-global kISRPageFault, kISR15, kISRFPUError, kISRAlignmentCheck, kISRMachineCheck, 
+global kISRDivideError, kISRDebug, kISRNMI, kISRBreakPoint, kISROverflow
+global kISRBoundRangeExceeded, kISRInvalidOpcode, kISRDeviceNotAvailable
+global kISRDoubleFault, kISRCoprocessorSegmentOverrun, kISRInvalidTSS 
+global kISRSegmentNotPresent, kISRStackSegmentFault, kISRGeneralProtection 
+global kISRPageFault, kISR15, kISRFPUError, kISRAlignmentCheck, kISRMachineCheck
 global kISRSIMDError, kISRETCException
 
-; 인터럽트(Interrupt) 처리를 위한 ISR
+; 인터럽트(Interrupt) 처리를 위한 ISR123132123
 global kISRTimer, kISRKeyboard, kISRSlavePIC, kISRSerial2, kISRSerial1, kISRParallel2
 global kISRFloppy, kISRParallel1, kISRRTC, kISRReserved, kISRNotUsed1, kISRNotUsed2
 global kISRMouse, kISRCoprocessor, kISRHDD1, kISRHDD2, kISRETCInterrupt

@@ -1,6 +1,8 @@
 #include "Descriptor.h"
 #include "Utility.h"
 #include "ISR.h"
+#include "ConsoleShell.h"
+#include "Console.h"
 
 //========================================================================
 // GDT 및 TSS

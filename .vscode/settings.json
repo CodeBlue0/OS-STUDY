@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "descriptor.h": "c"
+        "descriptor.h": "c",
+        "consoleshell.h": "c",
+        "keyboard.h": "c"
     }
 }

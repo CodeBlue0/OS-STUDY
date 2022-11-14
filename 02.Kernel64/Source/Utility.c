@@ -82,7 +82,7 @@ int kStrLen(const char* pcBuffer)
 }
 
 // 램의 총 크기(MB 단위)
-static gs_qwTotalRAMMBSize = 0;
+static int gs_qwTotalRAMMBSize = 0;
 
 // 64MB 이상의 위치부터 램 크기를 체크
 //      최초 부팅 과정에서 한 번만 호출해야 함
@@ -345,7 +345,7 @@ int kVSPrintf( char* pcBuffer, const char* pcFormatString, va_list ap )
 
     // 포맷 문자열의 길이를 읽어서 문자열의 길이만큼 데이터를 출력 버퍼에 출력
     iFormatLength = kStrLen(pcFormatString);
-    for (i = 0; i <iFormatLength; i++)
+    for (i = 0; i < iFormatLength; i++)
     {
         // %로 시작하면 데이터 타입 문자로 처리
         if (pcFormatString[i] == '%')
