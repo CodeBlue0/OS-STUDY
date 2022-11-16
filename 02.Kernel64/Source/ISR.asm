@@ -28,6 +28,7 @@ global kISRMouse, kISRCoprocessor, kISRHDD1, kISRHDD2, kISRETCInterrupt
     push rax
     push rbx
     push rcx
+    push rdx
     push rdi
     push rsi
     push r8
@@ -58,6 +59,7 @@ global kISRMouse, kISRCoprocessor, kISRHDD1, kISRHDD2, kISRETCInterrupt
 %macro KLOADCONTEXT 0   ; 파라미터를 전달받지 않는 KLOADCONTEXT 매크로 정의
     ; GS 세그먼트 셀렉터부터 RBP 레지스터까지 모두 스택에서 꺼내 복원
     pop gs
+    pop fs
     pop rax
     mov es, ax          ; ES 세그먼트 셀렉터와 DS 세그먼트 셀렉터는 스택에서 직접
     pop rax             ; 꺼내 복원할 수 없으므로, RAX 레지스터에 저장한 뒤에 복원

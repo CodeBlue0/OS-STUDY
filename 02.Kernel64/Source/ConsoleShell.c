@@ -426,8 +426,8 @@ void kTestTask1(void)
             break;
 
         case 1:
-            iX++;
-            if (iX >= (CONSOLE_WIDTH - iMargin))
+            iY++;
+            if (iY >= (CONSOLE_HEIGHT - iMargin))
             {
                 i = 2;
             }
@@ -435,14 +435,14 @@ void kTestTask1(void)
 
         case 2:
             iX--;
-            if (iY < iMargin)
+            if (iX < iMargin)
             {
                 i = 3;
             }
             break;
 
         case 3:
-            iX--;
+            iY--;
             if (iY < iMargin)
             {
                 i = 0;
@@ -474,7 +474,8 @@ void kTestTask2(void)
     iOffset = (pstRunningTask->stLink.qwID & 0xFFFFFFFF) * 2;
     iOffset = CONSOLE_WIDTH * CONSOLE_HEIGHT - 
         (iOffset % (CONSOLE_WIDTH * CONSOLE_HEIGHT));
-    while(TRUE)
+
+    while (TRUE)
     {
         // 회전하는 바람개비를 표시
         pstScreen[iOffset].bCharactor = vcData[i % 4];
@@ -507,7 +508,7 @@ void kCreateTestTask(const char* pcParameterBuffer)
     case 1:
         for (i = 0; i < kAToI(vcCount, 10); i++)
         {
-            if (kCreateTask(0, (QWORD)kTestTask1) == NULL)
+            if (kCreateTask(0, (QWORD) kTestTask1) == NULL)
             {
                 break;
             }
@@ -525,9 +526,9 @@ void kCreateTestTask(const char* pcParameterBuffer)
             {
                 break;
             }
-
-            kPrintf("Task2 %d Created\n", i);
-            break;
         }
+
+        kPrintf("Task2 %d Created\n", i);
+        break;
     }
 }
