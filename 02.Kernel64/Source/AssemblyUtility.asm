@@ -4,7 +4,7 @@
 global kInPortByte, kOutPortByte, kLoadGDTR, kLoadTR, kLoadIDTR
 global kEnableInterrupt, kDisableInterrupt, kReadRFLAGS
 global kReadTSC
-global kSwitchContext
+global kSwitchContext, kHlt
 
 SECTION .text       ; text 섹션(세그먼트)을 정의
 
@@ -206,3 +206,10 @@ kSwitchContext:
     ; Context 자료구조에서 레지스터를 복원
     KLOADCONTEXT
     iretq
+
+; 프로세서를 쉬게 함
+; PARAM: 없음
+kHlt:
+    hlt     ; 프로세서를 대기 상태로 진입시킴
+    hlt
+    ret

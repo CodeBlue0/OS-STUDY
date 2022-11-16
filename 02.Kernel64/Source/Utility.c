@@ -394,13 +394,13 @@ int kVSPrintf( char* pcBuffer, const char* pcFormatString, va_list ap )
                 iBufferIndex += kIToA(qwValue, pcBuffer + iBufferIndex, 16);
                 break;
             
-                // 4바이트 Hex 출력
+                // 8바이트 Hex 출력
             case 'q':
             case 'Q':
             case 'p':
                 // 가변 인자에 들어 있는 파라미터를 QWORD 타입으로 변환하여
                 // 출력 버퍼에 복사하고 출력한 길이만큼 버퍼의 인덱스를 이동
-                qwValue = (QWORD) (va_arg(ap, QWORD)) & 0xFFFFFFFF;
+                qwValue = (QWORD) (va_arg(ap, QWORD));
                 iBufferIndex += kIToA(qwValue, pcBuffer + iBufferIndex, 16);
                 break;
 
