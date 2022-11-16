@@ -180,8 +180,8 @@ kSwitchContext:
     mov ax, cs          ; CS 레지스터 저장
     mov qword[rdi + (20 * 8)], rax
 
-    mov rax, qword[rbp + 8]           ; RIP 레지스터를 Return Address로 설정하여
-    mov qword[rdi + (19 * 8)], rax  ; 다음 콘텍스트 복원 시에 이 함수를 호출한
+    mov rax, qword[rbp + 8]             ; RIP 레지스터를 Return Address로 설정하여
+    mov qword[rdi + (19 * 8)], rax      ; 다음 콘텍스트 복원 시에 이 함수를 호출한
                                         ; 위치로 이동하게 함
     
     ; 저장한 레지스터를 복구한 후 인터럽트가 발생했을 때처럼 나머지 콘텍스트를 모두 저장
