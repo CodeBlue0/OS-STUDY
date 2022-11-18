@@ -7,6 +7,7 @@
 #include "RTC.h"
 #include "AssemblyUtility.h"
 #include "Task.h"
+#include "Synchronization.h"
 
 // 커맨드 테이블 정의
 SHELLCOMMANDENTRY gs_vstCommandTable[] =
@@ -26,8 +27,12 @@ SHELLCOMMANDENTRY gs_vstCommandTable[] =
     { "changepriority", "Change Task Priority, ex)changepriority 1(ID) 2(Priority)",
         kChangeTaskPriority },
     { "tasklist", "Show Task List", kShowTaskList },
-    { "killtask", "End Task, ex)killtask 1(ID)", kKillTask },
+    { "killtask", "End Task, ex)killtask 1(ID) or 0xffffffff(All Task)", kKillTask },
     { "cpuload", "Show Processor Load", kCPULoad },
+    { "testmutex", "Test Mutex Function", kTestMutex },
+    { "testthread", "Test Thread And Process Function", kTestThread },
+    { "showmatrix", "Show Matrix Screen", kShowMatrix },
+    { "testpie", "Test PIE Calculation", kTestPIE }, 
 };
 
 //========================================================================
@@ -412,7 +417,7 @@ static void kTestTask1(void)
 {
     BYTE bData;
     int i = 0, iX = 0, iY = 0, iMargin, j;
-    CHARCTER* pstScreen = (CHARCTER*) CONSOLE_VIDEOMEMORYADDRESS;
+    CHARACTER* pstScreen = (CHARACTER*) CONSOLE_VIDEOMEMORYADDRESS;
     TCB* pstRunningTask;
     
     // 자신의 ID를 얻어서 화면 오프셋으로 사용
@@ -473,7 +478,7 @@ static void kTestTask1(void)
 static void kTestTask2(void)
 {
     int i = 0, iOffset;
-    CHARCTER* pstScreen = (CHARCTER*) CONSOLE_VIDEOMEMORYADDRESS;
+    CHARACTER* pstScreen = (CHARACTER*) CONSOLE_VIDEOMEMORYADDRESS;
     TCB* pstRunningTask;
     char vcData[4] = {'-', '\\', '|', '/'};
     
@@ -516,7 +521,7 @@ static void kCreateTestTask(const char* pcParameterBuffer)
     case 1:
         for (i = 0; i < kAToI(vcCount, 10); i++)
         {
-            if (kCreateTask(TASK_FLAGS_LOW, (QWORD) kTestTask1) == NULL)
+            if (kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) kTestTask1) == NULL)
             {
                 break;
             }
@@ -530,7 +535,7 @@ static void kCreateTestTask(const char* pcParameterBuffer)
     default:
         for (i = 0; i < kAToI(vcCount, 10); i++)
         {
-            if (kCreateTask(TASK_FLAGS_LOW, (QWORD) kTestTask2) == NULL)
+            if (kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) kTestTask2) == NULL)
             {
                 break;
             }
@@ -604,8 +609,12 @@ static void kShowTaskList(const char* pcParameterBuffer)
                 kPrintf("\n");
             }
             
-            kPrintf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q]\n", 1 + iCount++,
-                    pstTCB->stLink.qwID, GETPRIORITY(pstTCB->qwFlags), pstTCB->qwFlags);
+            kPrintf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q], Thread[%d]\n", 1 + iCount++,
+                    pstTCB->stLink.qwID, GETPRIORITY(pstTCB->qwFlags), pstTCB->qwFlags,
+                    kGetListCount(&(pstTCB->stChildThreadList)));
+            kPrintf("    Parent PID[0x%Q], Memory Address[0x%Q], Size[0x%Q]\n",
+                    pstTCB->qwParentProcessID, pstTCB->pvMemoryAddress, 
+                    pstTCB->qwMemorySize);
         }
     }
 }
@@ -616,6 +625,8 @@ static void kKillTask(const char* pcParameterBuffer)
     PARAMETERLIST stList;
     char vcID[30];
     QWORD qwID;
+    TCB* pstTCB;
+    int i;
 
     // 파라미터를 추출
     kInitializeParameter(&stList, pcParameterBuffer);
@@ -631,14 +642,52 @@ static void kKillTask(const char* pcParameterBuffer)
         qwID = kAToI(vcID, 10);
     }
 
-    kPrintf("Kill Task ID [0x%q] ", qwID);
-    if (kEndTask(qwID) == TRUE)
+    // 특정 ID만 종료하는 경우
+    if (qwID != 0xFFFFFFFF)
     {
-        kPrintf("Success\n");
+        pstTCB = kGetTCBInTCBPool(GETTCBOFFSET(qwID));
+        qwID = pstTCB->stLink.qwID;
+        
+        // 시스템 테스트는 제외
+        if (((qwID >> 32) != 0) && ((pstTCB->qwFlags & TASK_FLAGS_SYSTEM) == 0x00))
+        {
+            kPrintf("Kill Task ID [0x%q] ", qwID);
+            if (kEndTask(qwID) == TRUE)
+            {
+                kPrintf("Success\n");
+            }
+            else
+            {
+                kPrintf("Fail\n");
+            }
+        }
+        else
+        {
+            kPrintf("Task does not exist or task is system task\n");
+        }
     }
+    // 콘솔 셸과 유휴 태스크를 제외하고 모든 태스크 종료
     else
     {
-        kPrintf("Fail\n");
+        for (i = 0; i < TASK_MAXCOUNT; i++)
+        {
+            pstTCB = kGetTCBInTCBPool(i);
+            qwID = pstTCB->stLink.qwID;
+
+            // 시스템 테스트는 삭제 목록에서 제외
+            if ((qwID >> 32) != 0 && ((pstTCB->qwFlags & TASK_FLAGS_SYSTEM) == 0x00))
+            {
+                kPrintf("Kill Task ID [0x%Q] ", qwID);
+                if (kEndTask(qwID) == TRUE)
+                {
+                    kPrintf("Success\n");
+                }
+                else
+                {
+                    kPrintf("Fail\n");
+                }
+            }
+        }
     }
 }
 
@@ -646,4 +695,259 @@ static void kKillTask(const char* pcParameterBuffer)
 static void kCPULoad(const char* pcParameterBuffer)
 {
     kPrintf("Processor Load : %d%%\n", kGetProcessorLoad());
+}
+
+
+// 뮤텍스 테스트용 뮤텍스와 변수
+static MUTEX gs_stMutex;
+static volatile QWORD gs_qwAdder;
+
+// 뮤텍스를 테스트하는 태스크
+static void kPrintNumberTask(void)
+{
+    int i;
+    int j;
+    QWORD qwTickCount;
+
+    // 50ms 정도 대기하여 콘솔 셸이 출력하는 메시지와 겹치지 않도록 함
+    qwTickCount = kGetTickCount();
+    while ((kGetTickCount() - qwTickCount) < 50)
+    {
+        kSchedule();
+    } 
+    
+    // 루프를 돌면서 숫자를 출력
+    for (i = 0; i < 5; i++)
+    {
+        kLock(&(gs_stMutex));
+        kPrintf("Task ID [0x%Q] Value[%d]\n", kGetRunningTask()->stLink.qwID, gs_qwAdder);
+        
+        gs_qwAdder += 1;
+        kUnlock(&(gs_stMutex));
+        
+        // 프로세서 소모를 늘리려고 추가한 코드
+        for (j = 0 ; j < 30000 ; j++);
+    }
+    
+    // 모든 태스크가 종료할 때까지 1초(100ms) 정도 대기
+    qwTickCount = kGetTickCount();
+    while((kGetTickCount() - qwTickCount) < 1000)
+    {
+        kSchedule();
+    } 
+    
+    // 태스크 종료
+    kExitTask();
+}
+
+// 뮤텍스를 테스트하는 태스크 생성
+static void kTestMutex(const char* pcParameterBuffer)
+{
+    int i;
+    
+    gs_qwAdder = 1;
+    
+    // 뮤텍스 초기화
+    kInitializeMutex(&gs_stMutex);
+    
+    for (i = 0; i < 3; i++)
+    {
+        // 뮤텍스를 테스트하는 태스크를 3개 생성
+        kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) kPrintNumberTask);
+    } 
+
+    kPrintf("Wait Util %d Task End...\n", i);
+    kGetCh();
+}
+
+// 태스크 2를 자신의 스레드로 생성하는 태스크
+static void kCreateThreadTask(void)
+{
+    int i;
+    for (i = 0; i < 3; i++)
+    {
+        kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) kTestTask2);
+    }
+
+    while (TRUE)
+    {
+        kSleep(1);
+    }
+}
+// 스레드를 테스트하는 태스크 생성
+static void kTestThread(const char* pcParameterBuffer)
+{
+    TCB* pstProcess;
+    
+    pstProcess = kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_PROCESS, (void*) 0xEEEEEEEE, 0x1000,
+        (QWORD) kCreateThreadTask);
+
+    if (pstProcess != NULL)
+    {
+        kPrintf("Process [0x%Q] Create Success\n", pstProcess->stLink.qwID);
+    }
+    else
+    {
+        kPrintf("Process Create Fail\n");
+    }
+}
+
+// 난수를 발생시키기 위한 변수
+static volatile QWORD gs_qwRandomValue = 0;
+
+// 임의의 난수를 반환
+QWORD kRandom(void)
+{
+    gs_qwRandomValue = (gs_qwRandomValue * 412153 + 5571031) >> 16;
+    return gs_qwRandomValue;
+}
+
+// 철자를 흘러내리게 하는 스레드
+static void kDropCharactorThread( void )
+{
+    int iX, iY;
+    int i;
+    char vcText[2] = {0, };
+    iX = kRandom() % CONSOLE_WIDTH;
+    
+    while (TRUE)
+    {
+        // 잠시 대기함
+        kSleep(kRandom() % 20);
+        if ((kRandom() % 20) < 15)
+        {
+            vcText[0] = ' ';
+            for (i = 0; i < CONSOLE_HEIGHT - 1; i++)
+            {
+                kPrintStringXY(iX, i , vcText);
+                kSleep(5);
+            }
+        } 
+        else
+        {
+            for (i = 0; i < CONSOLE_HEIGHT - 1; i++)
+            {
+                vcText[ 0 ] = i + kRandom();
+                kPrintStringXY(iX, i, vcText);
+                kSleep(5);
+            }
+        }
+    }
+}
+
+// 스레드를 생성하여 매트릭스 화면처럼 보여주는 프로세스
+static void kMatrixProcess(void)
+{
+    int i;
+    for (i = 0; i < 300; i++)
+    {
+        if (kCreateTask(TASK_FLAGS_THREAD | TASK_FLAGS_LOW, 0, 0,  
+            (QWORD) kDropCharactorThread) == NULL)
+        {
+            break;
+        }
+
+        kSleep(kRandom() % 5 + 5);
+    }
+
+    kPrintf("%d Thread is created\n", i);
+
+    // 키가 입력되면 프로세스 종료
+    kGetCh();
+}
+
+// 매트릭스 화면을 보여줌
+static void kShowMatrix(const char* pcParameterBuffer)
+{
+    TCB* pstProcess;
+    
+    pstProcess = kCreateTask(TASK_FLAGS_PROCESS | TASK_FLAGS_LOW, (void*) 0xE00000, 0xE00000,
+    (QWORD) kMatrixProcess);
+    if (pstProcess != NULL)
+    {
+        kPrintf("Matrix Process [0x%Q] Create Success\n", pstProcess->stLink.qwID);
+        
+        // 태스크가 종료될 때까지 대기
+        while ((pstProcess->stLink.qwID >> 32) != 0)
+        {
+            kSleep(100);
+        }
+    }
+    else
+    {
+        kPrintf("Matrix Process Create Fail\n");
+    }
+}   
+
+// FPU를 테스트하는 태스크
+static void kFPUTestTask(void)
+{
+    double dValue1;
+    double dValue2;
+    TCB* pstRunningTask;
+    QWORD qwCount = 0;
+    QWORD qwRandomValue;
+    int i;
+    int iOffset;
+    char vcData[4] = {'-', '\\', '|', '/'};
+    CHARACTER* pstScreen = (CHARACTER*) CONSOLE_VIDEOMEMORYADDRESS;
+
+    pstRunningTask = kGetRunningTask();
+
+    // 자신의 ID를 얻어서 화면 오프셋으로 사용
+    iOffset = (pstRunningTask->stLink.qwID & 0xFFFFFFFF) * 2;
+    iOffset = CONSOLE_WIDTH * CONSOLE_HEIGHT - 
+        (iOffset % (CONSOLE_WIDTH * CONSOLE_WIDTH));
+    
+    // 루프를 무한히 반복하면서 동일한 계산을 수행
+    while (TRUE)
+    {
+        dValue1 = 1;
+        dValue2 = 1;
+
+        // 테스트를 위해 동일한 계산을 2번 반복해서 실행
+        for (i = 0; i < 10; i++)
+        {
+            qwRandomValue = kRandom();
+            dValue1 *= (double) qwRandomValue;
+            dValue2 *= (double) qwRandomValue;
+
+            kSleep(1);
+
+            qwRandomValue = kRandom();
+            dValue1 /= (double) qwRandomValue;
+            dValue2 /= (double) qwRandomValue;
+        }
+        if (dValue1 != dValue2)
+        {
+            kPrintf("Value Is Not Same~!!! [%f] != [%f]\n", dValue1, dValue2);
+            break;
+        }
+        qwCount++;
+
+        // 회전하는 바람개비를 표시
+        pstScreen[iOffset].bCharactor = vcData[qwCount % 4];
+
+        // 색깔 지정
+        pstScreen[iOffset].bAttribute = (iOffset % 15) + 1;
+    }
+}
+
+// 원주율(PIE)를 계산
+static void kTestPIE(const char* pcParameterBuffer)
+{
+    double dResult;
+    int i;
+    
+    kPrintf("PIE Cacluation Test\n");
+    kPrintf("Result: 355 / 113 = ");
+    dResult = (double) 355 / 113;
+    kPrintf("%d.%d%d\n", (QWORD) dResult, ((QWORD) (dResult * 10) % 10),
+            ((QWORD) (dResult * 100) % 10));
+    
+    // 실수를 계산하는 태스크를 생성
+    for (i = 0; i < 100; i++)
+    {
+        kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD) kFPUTestTask);
+    }
 }

@@ -74,7 +74,7 @@ void kPrintf(const char* pcFormatString, ...)
 // \n, \t 같은 문자가 포함된 문자열을 출력한 후 화면상의 다음 출력할 위치를 반환
 int kConsolePrintString(const char* pcBuffer)
 {
-    CHARCTER* pstScreen = (CHARCTER*) CONSOLE_VIDEOMEMORYADDRESS;
+    CHARACTER* pstScreen = (CHARACTER*) CONSOLE_VIDEOMEMORYADDRESS;
     int i, j;
     int iLength;
     int iPrintOffset;
@@ -113,9 +113,9 @@ int kConsolePrintString(const char* pcBuffer)
         if (iPrintOffset >= (CONSOLE_HEIGHT * CONSOLE_WIDTH))
         {
             // 가장 윗줄을 제외한 나머지를 한 줄 위로 복사
-            kMemCpy((CHARCTER *)CONSOLE_VIDEOMEMORYADDRESS,
-                    (CHARCTER *)(CONSOLE_VIDEOMEMORYADDRESS + CONSOLE_WIDTH * sizeof(CHARCTER)),
-                    (CONSOLE_HEIGHT - 1) * CONSOLE_WIDTH * sizeof(CHARCTER));
+            kMemCpy((CHARACTER *)CONSOLE_VIDEOMEMORYADDRESS,
+                    (CHARACTER *)(CONSOLE_VIDEOMEMORYADDRESS + CONSOLE_WIDTH * sizeof(CHARACTER)),
+                    (CONSOLE_HEIGHT - 1) * CONSOLE_WIDTH * sizeof(CHARACTER));
             
             // 가장 마지막 라인은 공백으로 채움
             for (j = (CONSOLE_HEIGHT - 1) * (CONSOLE_WIDTH);
@@ -136,7 +136,7 @@ int kConsolePrintString(const char* pcBuffer)
 // 전체 화면을 삭제
 void kClearScreen(void)
 {
-    CHARCTER* pstScreen = (CHARCTER*) CONSOLE_VIDEOMEMORYADDRESS;
+    CHARACTER* pstScreen = (CHARACTER*) CONSOLE_VIDEOMEMORYADDRESS;
     int i;
 
     // 화면 전체를 공백으로 채우고 커서의 위치를 0, 0으로 옮김
@@ -175,7 +175,7 @@ BYTE kGetCh(void)
 // 문자열을 X, Y 위치에 출력
 void kPrintStringXY(int iX, int iY, const char* pcString)
 {
-    CHARCTER* pstScreen = (CHARCTER*) CONSOLE_VIDEOMEMORYADDRESS;
+    CHARACTER* pstScreen = (CHARACTER*) CONSOLE_VIDEOMEMORYADDRESS;
     int i;
 
     // 비디오 메모리 어드레스에서 현재 출력할 위치를 계산
