@@ -8,6 +8,7 @@
 #include "AssemblyUtility.h"
 #include "Task.h"
 #include "PIT.h"
+#include "DynamicMemory.h"
 
 // 아래 함수는 C 언어 커널의 시작 부분임
 void Main(void)
@@ -44,9 +45,15 @@ void Main(void)
     kSetCursor(45, iCursorY++);
     kPrintf("Pass], Size = %d MB\n", kGetTotalRAMSize());
 
-    kPrintf( "TCB Pool And Scheduler Initialize...........[Pass]\n" );
+    kPrintf("TCB Pool And Scheduler Initialize...........[Pass]\n");
     iCursorY++;
     kInitializeScheduler();
+
+    // 동적 메모리 초기화
+    kPrintf("Dynamic Memory Initialize...................[Pass]\n");
+    iCursorY++;
+    kInitializeDynamicMemory();
+
     // 1ms당 한 번씩 인터럽트가 발생하도록 설정
     kInitializePIT( MSTOCOUNT( 1 ), 1 );
     
