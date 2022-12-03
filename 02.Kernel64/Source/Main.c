@@ -9,6 +9,7 @@
 #include "Task.h"
 #include "PIT.h"
 #include "DynamicMemory.h"
+#include "HardDisk.h"
 
 // 아래 함수는 C 언어 커널의 시작 부분임
 void Main(void)
@@ -73,14 +74,27 @@ void Main(void)
         while (TRUE);
     }
 
-    kPrintf("PIC Controller And Interrupt Initialize.....[    ]");
+    kPrintf("PIC Controller And Interrupt Initialize.....[    ]");  
     // PIC 컨트롤러 초기화 및 모든 인터럽트 활성화
     kInitializePIC();
     kMaskPICInterrupt(0);
     kEnableInterrupt();
     kSetCursor(45, iCursorY++);
     kPrintf("Pass\n");
-    
+
+    // 하드 디스크를 초기화
+    kPrintf("HDD Initialize..............................[    ]");  
+    if (kInitializeHDD() == TRUE)
+    {
+        kSetCursor(45, iCursorY++);
+        kPrintf("Pass\n");
+    }
+    else 
+    {
+        kSetCursor(45, iCursorY++);
+        kPrintf("Fail\n");
+    }
+
     // 유후 태스크를 생성하고 셸을 시작
     kCreateTask(TASK_FLAGS_LOWEST | TASK_FLAGS_THREAD | TASK_FLAGS_SYSTEM | TASK_FLAGS_IDLE, 0, 0, (QWORD) kIdleTask);
     kStartConsoleShell();
