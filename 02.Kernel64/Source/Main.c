@@ -10,6 +10,7 @@
 #include "PIT.h"
 #include "DynamicMemory.h"
 #include "HardDisk.h"
+#include "FileSystem.h"
 
 // 아래 함수는 C 언어 커널의 시작 부분임
 void Main(void)
@@ -94,6 +95,20 @@ void Main(void)
         kSetCursor(45, iCursorY++);
         kPrintf("Fail\n");
     }
+
+    // 파일 시스템을 초기화
+    kPrintf("File System Initialize Initialize...........[    ]");  
+    if (kInitializeFileSystem() == TRUE)
+    {
+        kSetCursor(45, iCursorY++);
+        kPrintf("Pass\n");
+    }
+    else 
+    {
+        kSetCursor(45, iCursorY++);
+        kPrintf("Fail\n");
+    }
+
 
     // 유후 태스크를 생성하고 셸을 시작
     kCreateTask(TASK_FLAGS_LOWEST | TASK_FLAGS_THREAD | TASK_FLAGS_SYSTEM | TASK_FLAGS_IDLE, 0, 0, (QWORD) kIdleTask);
