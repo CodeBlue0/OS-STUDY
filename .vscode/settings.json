@@ -2,6 +2,8 @@
     "files.associations": {
         "descriptor.h": "c",
         "consoleshell.h": "c",
-        "keyboard.h": "c"
+        "keyboard.h": "c",
+        "utility.h": "c",
+        "types.h": "c"
     }
 }

@@ -4,6 +4,7 @@
 #include "Types.h"
 #include "Synchronization.h"
 #include "HardDisk.h"
+#include "CacheManager.h"
 
 // 매크로와 함수 포인터
 // MINT 파일 시스템 시그너처(Signature)
@@ -16,7 +17,7 @@
 #define FILESYSTEM_FREECLUSTER              0x00
 // 루트 디렉터리에 있는 최대 디렉터리 엔트리의 수
 #define FILESYSTEM_MAXDIRECTORYENTRYCOUNT   ((FILESYSTEM_SECTORSPERCLUSTER * 512) / \
-    sizeof( DIRECTORYENTRY))
+    sizeof(DIRECTORYENTRY))
 // 클러스터의 크기(바이트 수)
 #define FILESYSTEM_CLUSTERSIZE              (FILESYSTEM_SECTORSPERCLUSTER * 512)
 
@@ -67,7 +68,7 @@ typedef int (*fWriteHDDSector) (BOOL bPrimary, BOOL bMaster, DWORD dwLBA,
 
 // 구조체
 // 1바이트로 정렬
-#pragma pack( push, 1 )
+#pragma pack(push, 1)
 
 // 파티션 자료구조
 typedef struct kPartitionStruct
@@ -182,9 +183,12 @@ typedef struct kFileSystemManagerStruct
 
     // 핸들 풀의 어드레스
     FILE* pstHandlePool;
+
+    // 캐시를 사용하는지 여부
+    BOOL bCacheEnable;
 } FILESYSTEMMANAGER;
 
-#pragma pack( pop )
+#pragma pack(pop)
 
 // 함수
 BOOL kInitializeFileSystem(void);
@@ -205,6 +209,22 @@ static BOOL kSetDirectoryEntryData(int iIndex, DIRECTORYENTRY* pstEntry);
 static BOOL kGetDirectoryEntryData(int iIndex, DIRECTORYENTRY* pstEntry);
 static int kFindDirectoryEntry(const char* pcFileName, DIRECTORYENTRY* pstEntry);
 void kGetFileSystemInformation(FILESYSTEMMANAGER* pstManager);
+
+// 캐시 관련 함수
+static BOOL kInternalReadClusterLinkTableWithoutCache(DWORD dwOffset,
+    BYTE* pbBuffer);
+static BOOL kInternalReadClusterLinkTableWithCache(DWORD dwOffset,
+    BYTE* pbBuffer);
+static BOOL kInternalWriteClusterLinkTableWithoutCache(DWORD dwOffset,
+    BYTE* pbBuffer);
+static BOOL kInternalWriteClusterLinkTableWithCache(DWORD dwOffset,
+    BYTE* pbBuffer);
+static BOOL kInternalReadClusterWithoutCache(DWORD dwOffset, BYTE* pbBuffer);
+static BOOL kInternalReadClusterWithCache(DWORD dwOffset, BYTE* pbBuffer);
+static BOOL kInternalWriteClusterWithoutCache(DWORD dwOffset, BYTE* pbBuffer);
+static BOOL kInternalWriteClusterWithCache(DWORD dwOffset, BYTE* pbBuffer);
+static CACHEBUFFER* kAllocateCacheBufferWithFlush(int iCacheTableIndex);
+BOOL kFlushFileSystemCache(void);
 
 // 고수준 함수(High Level Function)
 FILE* kOpenFile(const char* pcFileName, const char* pcMode);

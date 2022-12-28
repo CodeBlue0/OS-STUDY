@@ -121,4 +121,5 @@ static BOOL kIsHDDReady(BOOL bPrimary);
 static BOOL kWaitForHDDNoBusy(BOOL bPrimary);
 static BOOL kWaitForHDDReady(BOOL bPrimary);
 static BOOL kWaitForHDDInterrupt(BOOL bPrimary);
+
 #endif /*__HARDDISK_H__*/
