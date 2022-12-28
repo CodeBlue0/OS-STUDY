@@ -4,6 +4,8 @@
         "consoleshell.h": "c",
         "keyboard.h": "c",
         "utility.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "assemblyutility.h": "c",
+        "in.h": "c"
     }
 }
