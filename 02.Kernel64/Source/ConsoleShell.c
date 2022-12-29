@@ -12,6 +12,8 @@
 #include "HardDisk.h"
 #include "FileSystem.h"
 #include "SerialPort.h"
+#include "MPConfigurationTable.h"
+
 
 // 커맨드 테이블 정의
 SHELLCOMMANDENTRY gs_vstCommandTable[] =
@@ -56,6 +58,7 @@ SHELLCOMMANDENTRY gs_vstCommandTable[] =
     { "testperformance", "Test File Read/WritePerformance", kTestPerformance },
     { "flush", "Flush File System Cache", kFlushCache },
     { "download", "Download Data From Serial, ex) download a.txt", kDownloadFile },
+    { "showmpinfo", "Show MP Configuration Table Information", kShowMPConfigurationTable },
 };
 
 //========================================================================
@@ -2257,4 +2260,10 @@ static void kDownloadFile(const char* pcParameterBuffer)
     // 파일을 닫고 파일 시스템 캐시를 내보냄
     fclose(fp);
     kFlushFileSystemCache();
+}
+
+// MP 설정 테이블 정보를 출력
+static void kShowMPConfigurationTable(const char* pcParameterBuffer)
+{
+    kPrintMPConfigurationTable();
 }
