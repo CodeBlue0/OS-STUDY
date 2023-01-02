@@ -84,7 +84,7 @@ PROTECTEDMODE:
 
     ; Application Processor이면 아래의 과정을 모두 뛰어넘어서 C 언어 커널 엔트리 포인트로 이동
     cmp byte [0x7C09], 0x00
-    je .APPLICATIONPROCESSORSTARTPOINTT
+    je .APPLICATIONPROCESSORSTARTPOINT
 
     ; 화면에 보호 모드로 전환되었다는 메시지를 찍는다.
     push (SWITCHSUCCESSMESSAGE - $$ + 0x10000)
@@ -93,7 +93,7 @@ PROTECTEDMODE:
     call PRINTMESSAGE
     add esp, 12
 
-.APPLICATIONPROCESSORSTARTPOINTT:
+.APPLICATIONPROCESSORSTARTPOINT:
     jmp dword 0x18: 0x10200 ; C 언어 커널이 존재하는 0x10200 어드레스로 이동하여 C 언어 커널 수행
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -222,7 +222,7 @@ GDT:
     GDTEND:
 
     ; 보호 모드로 전환되었다는 메시지
-    SWITCHSUCCESSMESSAGE:   db 'Switch To Protected Mode Sucess~!!', 0
+    SWITCHSUCCESSMESSAGE:   db 'Switch To Protected Mode Success~!!', 0
 
     times 512 - ($ - $$) db 0x00 ;512바이트를 맞추기 위해 남은 부분을 0으로 채움
 

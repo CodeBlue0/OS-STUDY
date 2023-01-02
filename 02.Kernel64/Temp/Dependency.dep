@@ -55,8 +55,7 @@ MPConfigurationTable.o: ../Source/MPConfigurationTable.c \
 MultiProcessor.o: ../Source/MultiProcessor.c ../Source/MultiProcessor.h \
  ../Source/Types.h ../Source/MPConfigurationTable.h \
  ../Source/AssemblyUtility.h ../Source/Task.h ../Source/List.h \
- ../Source/LocalAPIC.h ../Source/PIT.h ../Source/Utility.h \
- ../Source/Console.h
+ ../Source/LocalAPIC.h ../Source/PIT.h ../Source/Utility.h
 PIC.o: ../Source/PIC.c ../Source/PIC.h ../Source/Types.h \
  ../Source/AssemblyUtility.h ../Source/Task.h ../Source/List.h
 PIT.o: ../Source/PIT.c ../Source/PIT.h ../Source/Types.h \

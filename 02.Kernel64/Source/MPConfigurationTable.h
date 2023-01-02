@@ -191,12 +191,12 @@ typedef struct kMPConfigurationManagerStruct
     BOOL bUsePICMode;
     // ISA 버스의 ID
     BYTE bISABusID;
-} MPCONFIGRUATIONMANAGER;
+} MPCONFIGURATIONMANAGER;
 
 // 함수
 BOOL kFindMPFloatingPointerAddress(QWORD* pstAddress);
 BOOL kAnalysisMPConfigurationTable(void);
-MPCONFIGRUATIONMANAGER* kGetMPConfigurationManager(void);
+MPCONFIGURATIONMANAGER* kGetMPConfigurationManager(void);
 void kPrintMPConfigurationTable(void);
 int kGetProcessorCount(void);
 

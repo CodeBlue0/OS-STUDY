@@ -51,8 +51,8 @@
 // 16바이트 엔트리의 개수, 즉 TSS는 프로세서 또는 코어의 최대 개수만큼 생성
 #define GDT_MAXENTRY16COUNT (MAXPROCESSORCOUNT)
 // GDT 테이블의 크기
-#define GDT_TABLESIZE ((sizeof(GDTENTRY8) * GDT_MAXENTRY8COUNT) + \
-    (sizeof(GDTENTRY16) * GDT_MAXENTRY16COUNT))
+#define GDT_TABLESIZE ((sizeof(GDTENTRY8) * GDT_MAXENTRY8COUNT) \
+    + (sizeof(GDTENTRY16) * GDT_MAXENTRY16COUNT))
 // TSS 세그먼트의 전체 크기
 #define TSS_SEGMENTSIZE (sizeof(TSSSEGMENT) * MAXPROCESSORCOUNT)
 
@@ -100,8 +100,8 @@ typedef struct kGDTRStruct
     WORD wLimit;
     QWORD qwBaseAddress;
     // 16바이트 어드레스 정렬을 위해 추가
-    WORD wPading;
-    DWORD dwPading;
+    WORD wPadding;
+    DWORD dwPadding;
 } GDTR, IDTR;
 
 // 8바이트 크기의 GDT 엔트리 구조

@@ -3,7 +3,7 @@
 #include "Utility.h"
 
 // MP 설정 테이블을 관리하는 자료구조
-static MPCONFIGRUATIONMANAGER gs_stMPConfigurationManager = {0, };
+static MPCONFIGURATIONMANAGER gs_stMPConfigurationManager = {0, };
 
 // BIOS의 영역에서 MP Floating Header를 찾아서 그 주소를 반환
 BOOL kFindMPFloatingPointerAddress(QWORD* pstAddress)
@@ -86,7 +86,7 @@ BOOL kAnalysisMPConfigurationTable(void)
     BUSENTRY* pstBusEntry;
 
     // 자료구조 초기화
-    kMemSet(&gs_stMPConfigurationManager, 0, sizeof(MPCONFIGRUATIONMANAGER));
+    kMemSet(&gs_stMPConfigurationManager, 0, sizeof(MPCONFIGURATIONMANAGER));
     gs_stMPConfigurationManager.bISABusID = 0xFF;
 
     // MP 플로팅 포인터의 어드레스를 구함
@@ -156,7 +156,7 @@ BOOL kAnalysisMPConfigurationTable(void)
 }
 
 // MP 설정 테이블을 관리하는 자료구조를 반환
-MPCONFIGRUATIONMANAGER* kGetMPConfigurationManager(void)
+MPCONFIGURATIONMANAGER* kGetMPConfigurationManager(void)
 {
     return &gs_stMPConfigurationManager;
 }
@@ -164,7 +164,7 @@ MPCONFIGRUATIONMANAGER* kGetMPConfigurationManager(void)
 // MP 설정 테이블의 정보를 모두 화면에 출력
 void kPrintMPConfigurationTable(void)
 {
-    MPCONFIGRUATIONMANAGER* pstMPConfigurationManager;
+    MPCONFIGURATIONMANAGER* pstMPConfigurationManager;
     QWORD qwMPFloatingPointerAddress;
     MPFLOATINGPOINTER* pstMPFloatingPointer;
     MPCONFIGURATIONTABLEHEADER* pstMPTableHeader;
@@ -242,7 +242,7 @@ void kPrintMPConfigurationTable(void)
 
     // PIC 모드 지원 여부 출력
     kPrintf("Feature Byte 2 : 0x%X ", pstMPFloatingPointer->vbMPFeatureByte[1]);
-    if (pstMPFloatingPointer->vbMPFeatureByte[1] &
+    if (pstMPFloatingPointer->vbMPFeatureByte[2] &
         MP_FLOATINGPOINTER_FEATUREBYTE2_PICMODE)
     {
         kPrintf("(PIC Mode Support)\n");

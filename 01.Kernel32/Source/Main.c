@@ -72,7 +72,7 @@ void Main(void)
     // 64 비트 지원 유무 확인
    kReadCPUID(0x80000001, &dwEAX, &dwEBX, &dwECX, &dwEDX);
     kPrintString(0, 8, "64bit Mode Support Check....................[    ]");
-    if (dwEDX * (1<<29))
+    if (dwEDX & (1<<29))
     {
         kPrintString(45, 8, "Pass");
     }
@@ -140,8 +140,8 @@ BOOL kIsMemoryEnough(void)
 {
     DWORD* pdwCurrentAddress;
 
-    // 0x10000(1MB)부터 검사 시작
-    pdwCurrentAddress = (DWORD*) 0x10000;
+    // 0x100000(1MB)부터 검사 시작
+    pdwCurrentAddress = (DWORD*) 0x100000;
 
     // 0x4000000(64MB)까지 루프를 돌면서 확인
     while((DWORD) pdwCurrentAddress < 0x4000000)
