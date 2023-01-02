@@ -12,6 +12,20 @@ START:
     mov ds, ax          ; DS 세그먼트 레지스터에 설정
     mov es, ax          ; ES 세그먼트 레지스터에 설정
 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Application Processor 이면 아래의 과정을 모두 뛰어넘어서 보호 모드 커널로 이동
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    mov ax, 0x0000      ; Application Processor 플래그를 확인하려고
+    mov es, ax          ; ES 세그먼트 레지스터의 시작 어드레스를 0으로 설정
+
+    cmp byte [es: 0x7C09], 0x00         ; 플래그가 0이면 Application Processor이므로
+    je .APPLICATIONPROCESSORSTARTPOINT  ; Application Processor용 코드로 이동
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Bootstrap Processor만 실행하는 부분
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; A20 게이트를 활성화
     ; BIOS를 이용한 전환이 실패했을 때 시스템 컨트롤 포트로 전환 시도
@@ -21,7 +35,7 @@ START:
     int 0x15            ; BIOS 인터럽트 서비스 호출
 
     jc .A20GATEERROR    ; A20 게이트 활성화가 성공했는지 확인
-    jmp .A20GATESUCCES
+    jmp .A20GATESUCCESS
 
     .A20GATEERROR:
         ; 에러 발생 시, 시스템 컨트롤 포트로 전환 시도
@@ -30,7 +44,11 @@ START:
         and al, 0xFE    ; 시스템 리셋 방지를 위해 0xFE와 AND 연산하여 비트 0를 0으로 설정
         out 0x92, al    ; 시스템 컨트롤 포트(0x92)에 변경된 값을 1 바이트 설정
     
-    .A20GATESUCCES:
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Bootstrap Processor와 Application Processor가 공통으로 수행하는 부분
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    .A20GATESUCCESS:
+    .APPLICATIONPROCESSORSTARTPOINT:
     cli                 ; 인터럽트가 발생하지 못하도록 설정
     lgdt [GDTR]         ; GDTR 자료구조를 프로세서에 설정하여 GDT 테이블을 로드
 
@@ -61,8 +79,12 @@ PROTECTEDMODE:
 
     ; 스택을 0x00000000~0x0000FFFF 영역에 64KB 크기로 생성
     mov ss, ax
-    mov esp, 0xFFEE
-    mov ebp, 0xFFEE
+    mov esp, 0xFFFE
+    mov ebp, 0xFFFE
+
+    ; Application Processor이면 아래의 과정을 모두 뛰어넘어서 C 언어 커널 엔트리 포인트로 이동
+    cmp byte [0x7C09], 0x00
+    je .APPLICATIONPROCESSORSTARTPOINTT
 
     ; 화면에 보호 모드로 전환되었다는 메시지를 찍는다.
     push (SWITCHSUCCESSMESSAGE - $$ + 0x10000)
@@ -71,6 +93,7 @@ PROTECTEDMODE:
     call PRINTMESSAGE
     add esp, 12
 
+.APPLICATIONPROCESSORSTARTPOINTT:
     jmp dword 0x18: 0x10200 ; C 언어 커널이 존재하는 0x10200 어드레스로 이동하여 C 언어 커널 수행
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

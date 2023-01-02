@@ -6,6 +6,7 @@
         "utility.h": "c",
         "types.h": "c",
         "assemblyutility.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "modeswitch.h": "c"
     }
 }
