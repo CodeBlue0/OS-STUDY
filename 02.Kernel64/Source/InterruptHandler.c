@@ -7,6 +7,7 @@
 #include "Descriptor.h"
 #include "AssemblyUtility.h"
 #include "HardDisk.h"
+#include "LocalAPIC.h"
 
 // 공통으로 사용하는 예외 핸들러
 void kCommonExceptionHandler(int iVectorNumber, QWORD qwErrorCode)
@@ -42,8 +43,12 @@ void kCommonInterruptHandler(int iVectorNumber)
     g_iCommonInterruptCount = ( g_iCommonInterruptCount + 1 ) % 10;
     kPrintStringXY( 70, 0, vcBuffer );
     //============================================== =======================
-    // EOI 전송
+    
+    // PIC 컨트롤러로 EOI 전송
     kSendEOIToPIC(iVectorNumber - PIC_IRQSTARTVECTOR);
+
+    // 로컬 APIC로 EOI 전송
+    kSendEOIToLocalAPIC();
 }
 
 // 키보드 인터럽트의 핸들러
@@ -71,8 +76,11 @@ void kKeyboardHandler(int iVectorNumber)
         kConvertScanCodeAndPutQueue(bTemp);
     }
 
-    // EOI 전송
+    // PIC 컨트롤러로 EOI 전송
     kSendEOIToPIC(iVectorNumber - PIC_IRQSTARTVECTOR);
+
+    // 로컬 APIC로 EOI 전송
+    kSendEOIToLocalAPIC();
 }
 
 // 타이머 인터럽트의 핸들러
@@ -92,8 +100,11 @@ void kTimerHandler(int iVectorNumber)
     kPrintStringXY(70, 0, vcBuffer);
     //====================================================== ===============
 
-    // EOI 전송
+    // PIC 컨트롤러로 EOI 전송
     kSendEOIToPIC(iVectorNumber - PIC_IRQSTARTVECTOR);
+
+    // 로컬 APIC로 EOI 전송
+    kSendEOIToLocalAPIC();
 
     // 타이머 발생 횟수를 증가
     g_qwTickCount++;
@@ -196,6 +207,9 @@ void kHDDHandler(int iVectorNumber)
         kSetHDDInterruptFlag(FALSE, TRUE);
     }
     
-    // EOI 전송
+    // PIC 컨트롤러로 EOI 전송
     kSendEOIToPIC(iVectorNumber - PIC_IRQSTARTVECTOR);
+
+    // 로컬 APIC로 EOI 전송
+    kSendEOIToLocalAPIC();
 }
