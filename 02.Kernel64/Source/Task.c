@@ -91,12 +91,12 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     BOOL bPreviousFlag;
     
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
     pstTask = kAllocateTCB();
     if( pstTask == NULL )
     {
         // 임계 영역 끝
-        kUnlockForSystemData(bPreviousFlag);
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
         return NULL;
     }
 
@@ -107,7 +107,7 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     {
         kFreeTCB(pstTask->stLink.qwID);
         // 임계 영역 끝
-        kUnlockForSystemData(bPreviousFlag);
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
         return NULL;
     }
 
@@ -134,7 +134,7 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     pstTask->stThreadLink.qwID = pstTask->stLink.qwID;
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 태스크 ID로 스택 어드레스 계산, 하위 32비트가 스택 풀의 오프셋 역할 수행
     pvStackAddress = (void*) (TASK_STACKPOOLADDRESS + (TASK_STACKSIZE *
@@ -151,13 +151,13 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     pstTask->bFPUUsed = FALSE;
     
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 태스크를 준비 리스트에 삽입
     kAddTaskToReadyList(pstTask);
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     return pstTask;
 }
@@ -234,6 +234,9 @@ void kInitializeScheduler(void)
 
     // FPU를 사용한 태스크 ID를 유효하지 않은 값으로 초기화
     gs_stScheduler.qwLastFPUUsedTaskID = TASK_INVALIDID;
+
+    // 스핀락 초기화
+    kInitializeSpinLock(&(gs_stScheduler.stSpinLock));
 }
 
 // 현재 수행 중인 태스크를 설정
@@ -242,12 +245,12 @@ void kSetRunningTask(TCB* pstTask)
     BOOL bPreviousFlag;
 
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     gs_stScheduler.pstRunningTask = pstTask;
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 }
 
 // 현재 수행 중인 태스크를 반환
@@ -257,12 +260,12 @@ TCB* kGetRunningTask(void)
     TCB* pstRunningTask;
     
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
     
     pstRunningTask = gs_stScheduler.pstRunningTask;
     
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     return gs_stScheduler.pstRunningTask;
 }
@@ -357,7 +360,7 @@ BOOL kChangePriority(QWORD qwTaskID, BYTE bPriority)
     }
 
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 현재 실행 중인 태스크이면 우선순위만 변경
     // PIT 컨트롤러의 인터럽트(IRQ 0)가 발생하여 태스크 전환이 수행될 때 변경된
@@ -390,7 +393,7 @@ BOOL kChangePriority(QWORD qwTaskID, BYTE bPriority)
         }
     }
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
     return TRUE;
 }
 
@@ -409,15 +412,17 @@ void kSchedule(void)
 
     // 전환하는 도중 인터럽트가 발생하여 태스크 전환이 또 일어나면 곤란하므로
     // 전환하는 동안 인터럽트가 발생하지 못하도록 설정
+    bPreviousFlag = kSetInterruptFlag(FALSE);
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 실행할 다음 태스크를 얻음
     pstNextTask = kGetNextTaskToRun();
     if (pstNextTask == NULL)
     {
         // 임계 영역 끝
-        kUnlockForSystemData(bPreviousFlag);
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
+        kSetInterruptFlag(bPreviousFlag);
         return;
     }
 
@@ -450,16 +455,20 @@ void kSchedule(void)
     if (pstRunningTask->qwFlags & TASK_FLAGS_ENDTASK)
     {
         kAddListToTail(&(gs_stScheduler.stWaitList), pstRunningTask);
+        // 임계 영역 끝
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
         kSwitchContext(NULL, &(pstNextTask->stContext));
     }
     else 
     {
         kAddTaskToReadyList(pstRunningTask);
+        // 임계 영역 끝
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
         kSwitchContext(&(pstRunningTask->stContext), &(pstNextTask->stContext));
     }
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kSetInterruptFlag(bPreviousFlag);
 }
 
 // 인터럽트가 발생했을 때, 다른 태스크를 찾아 전환
@@ -471,14 +480,14 @@ BOOL kScheduleInInterrupt(void)
     BOOL bPreviousFlag;
 
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 전환할 태스크가 없으면 종료
     pstNextTask = kGetNextTaskToRun();
     if (pstNextTask == NULL)
     {
         // 임계 영역 끝
-        kUnlockForSystemData(bPreviousFlag);
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
         return FALSE;
     }
     
@@ -514,7 +523,7 @@ BOOL kScheduleInInterrupt(void)
     }
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag); 
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 다음에 수행할 태스크가 FPU를 쓴 태스크가 아니라면 TS 비트 설정
     if (gs_stScheduler.qwLastFPUUsedTaskID != pstNextTask->stLink.qwID)
@@ -560,7 +569,7 @@ BOOL kEndTask(QWORD qwTaskID)
     BOOL bPreviousFlag;
     
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     // 현재 실행 중인 태스크면 EndTask 비트를 설정하고 태스크를 전환
     pstTarget = gs_stScheduler.pstRunningTask;
@@ -570,7 +579,7 @@ BOOL kEndTask(QWORD qwTaskID)
         SETPRIORITY(pstTarget->qwFlags, TASK_FLAGS_WAIT);
 
         // 임계 영역 끝
-        kUnlockForSystemData(bPreviousFlag);
+        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
         kSchedule();
         
@@ -592,7 +601,7 @@ BOOL kEndTask(QWORD qwTaskID)
                 SETPRIORITY(pstTarget->qwFlags, TASK_FLAGS_WAIT);
             }
             // 임계 영역 끝
-            kUnlockForSystemData(bPreviousFlag);
+            kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
             return FALSE;
         }
@@ -618,7 +627,7 @@ int kGetReadyTaskCount(void)
     BOOL bPreviousFlag;
 
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
     
     // 모든 준비 큐를 확인하여 태스크 개수를 구함
     for (i = 0; i < TASK_MAXREADYLISTCOUNT; i++)
@@ -627,7 +636,7 @@ int kGetReadyTaskCount(void)
     }
     
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
     return iTotalCount;
 }
 
@@ -641,12 +650,12 @@ int kGetTaskCount(void)
     iTotalCount = kGetReadyTaskCount();
 
     // 임계 영역 시작
-    bPreviousFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     iTotalCount += kGetListCount(&(gs_stScheduler.stWaitList)) + 1;
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousFlag);
+    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
 
     return iTotalCount;
 }
@@ -758,13 +767,13 @@ void kIdleTask(void)
             while (TRUE)
             { 
                 // 임계 영역 시작
-                bPreviousFlag = kLockForSystemData();
+                kLockForSpinLock(&(gs_stScheduler.stSpinLock));
 
                 pstTask = kRemoveListFromHeader(&(gs_stScheduler.stWaitList));
                 if(pstTask == NULL)
                 {
                     // 임계 영역 끝
-                    kUnlockForSystemData(bPreviousFlag);
+                    kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
                     break;
                 }
 
@@ -804,7 +813,7 @@ void kIdleTask(void)
                         kAddListToTail(&(gs_stScheduler.stWaitList), pstTask);
 
                         // 임계 영역 끝
-                        kUnlockForSystemData(bPreviousFlag);
+                        kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
                         continue;
                     }
                     // 프로세스를 종료해야 하므로 할당받은 메모리 영역을 삭제
@@ -828,7 +837,7 @@ void kIdleTask(void)
                 kFreeTCB(qwTaskID);
 
                 // 임계 영역 끝
-                kUnlockForSystemData(bPreviousFlag);
+                kUnlockForSpinLock(&(gs_stScheduler.stSpinLock));
                 
                 kPrintf("IDLE: Task ID[0x%q] is completely ended.\n", pstTask->stLink.qwID);
             }

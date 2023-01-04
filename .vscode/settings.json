@@ -7,6 +7,7 @@
         "types.h": "c",
         "assemblyutility.h": "c",
         "in.h": "c",
-        "modeswitch.h": "c"
+        "modeswitch.h": "c",
+        "localapic.h": "c"
     }
 }

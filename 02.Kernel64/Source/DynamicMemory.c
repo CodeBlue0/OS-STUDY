@@ -78,6 +78,9 @@ void kInitializeDynamicMemory(void)
     gs_stDynamicMemory.qwEndAddress = kCalculateDynamicMemorySize() +
         DYNAMICMEMORY_START_ADDRESS;
     gs_stDynamicMemory.qwUsedSize = 0;
+
+    // 스핀락 초기화
+    kInitializeSpinLock(&(gs_stDynamicMemory.stSpinLock));
 }
 
 // 동적 메모리 영역의 크기를 계산
@@ -200,8 +203,7 @@ static int kAllocationBuddyBlock(QWORD qwAlignedSize)
     }
 
     // 동기화 처리
-
-    bPreviousInterruptFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stDynamicMemory.stSpinLock));
 
     // 만족하는 블록 리스트부터 최상위 블록 리스트까지 검색하여 블록을 선택
     for (i = iBlockListIndex; i < gs_stDynamicMemory.iMaxLevelCount; i++)
@@ -217,7 +219,7 @@ static int kAllocationBuddyBlock(QWORD qwAlignedSize)
     // 마지막 블록 리스트까지 검색했는데도 없으면 실패
     if (iFreeOffset == -1)
     {
-        kUnlockForSystemData(bPreviousInterruptFlag);
+        kUnlockForSpinLock(&(gs_stDynamicMemory.stSpinLock));
         return -1;
     }
 
@@ -237,7 +239,7 @@ static int kAllocationBuddyBlock(QWORD qwAlignedSize)
             iFreeOffset = iFreeOffset * 2;
         }
     }
-    kUnlockForSystemData(bPreviousInterruptFlag);
+    kUnlockForSpinLock(&(gs_stDynamicMemory.stSpinLock));
 
     return iFreeOffset;
 }
@@ -374,7 +376,7 @@ static BOOL kFreeBuddyBlock(int iBlockListIndex, int iBlockOffset)
     BOOL bPreviousInterruptFlag;
 
     // 동기화 처리
-    bPreviousInterruptFlag = kLockForSystemData();
+    kLockForSpinLock(&(gs_stDynamicMemory.stSpinLock));
 
     // 블록 리스트의 끝까지 인접한 블록을 검사하여 결합할 수 없을 때까지 반복
     for (i = iBlockListIndex; i < gs_stDynamicMemory.iMaxLevelCount; i++)
@@ -409,7 +411,7 @@ static BOOL kFreeBuddyBlock(int iBlockListIndex, int iBlockOffset)
         iBlockOffset = iBlockOffset / 2;
     }
 
-    kUnlockForSystemData(bPreviousInterruptFlag);
+    kUnlockForSpinLock(&(gs_stDynamicMemory.stSpinLock));
     return TRUE;
 }
 

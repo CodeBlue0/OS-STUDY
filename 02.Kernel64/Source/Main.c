@@ -13,6 +13,7 @@
 #include "FileSystem.h"
 #include "SerialPort.h"
 #include "MultiProcessor.h"
+#include "LocalAPIC.h"
 
 // Application Processor를 위한 Main 함수
 void MainForApplicationProcessor(void);
@@ -139,6 +140,17 @@ void MainForApplicationProcessor(void)
     // IDT 테이블을 설정
     kLoadIDTR(IDTR_STARTADDRESS);
 
+    kEnableSoftwareLocalAPIC();
+
+    kSetTaskPriority(0);
+
+    kInitializeLocalVectorTable();
+
+    kEnableInterrupt();    
+
+    // 대칭 I/O 모드 테스트를 위해 Application Processor가 시작한 후 한 번만 출력
+    kPrintf("Application Processor[APIC ID: %d] Is Activated\n", kGetAPICID());
+
     // 1초마다 한 번씩 메시지를 출력
     qwTickCount = kGetTickCount();
     while (TRUE)
@@ -147,7 +159,8 @@ void MainForApplicationProcessor(void)
         {
             qwTickCount = kGetTickCount();
 
-            kPrintf("Application Processor[APIC ID: %d] Is Activated\n", kGetAPICID());
+            // 대칭 I/O 모드 테스트를 위해 Application Processor가 시작한 후 한 번만 출력
+            // kPrintf("Application Processor[APIC ID: %d] Is Activated\n", kGetAPICID());
         }
     }
 }

@@ -475,7 +475,7 @@ void UpdateCombinationKeyStatusAndLED(BYTE bScanCode)
     // Scroll Lock 키의 스캔 코드(70)이면 Scroll Lock의 상태를 갱신하고 LED 상태 변경
     else if((bDownScanCode == 70) && bDown == TRUE)
     {
-        gs_stKeyboardManager.bNumLockOn ^= TRUE;
+        gs_stKeyboardManager.bScrollLockOn ^= TRUE;
         bLEDStatusChanged = TRUE;
     }
 
@@ -505,6 +505,7 @@ BOOL kConvertScanCodeToASCIICode(BYTE bScanCode, BYTE* pbASCIICode, BOOL* pbFlag
         *pbASCIICode == KEY_PAUSE;
         *pbFlags = KEY_FLAGS_DOWN;
         gs_stKeyboardManager.iSkipCountForPause = KEY_SKIPCOUNTFORPAUSE;
+        return TRUE;
     }
     // 확장 키 코드가 들어왔을 때, 실제 키 값은 다음에 들어오므로 플래그 설정만 하고 종료
     else if (bScanCode == 0xE0)
@@ -555,6 +556,9 @@ BOOL kInitializeKeyboard(void)
     kInitializeQueue(&gs_stKeyQueue, gs_vstKeyQueueBuffer, KEY_MAXQUEUECOUNT,
         sizeof(KEYDATA));
 
+    // 스핀락 초기화
+    kInitializeSpinLock(&(gs_stKeyboardManager.stSpinLock));
+
     // 키보드 활성화
     return kActivateKeyboard();
 }
@@ -574,13 +578,13 @@ BOOL kConvertScanCodeAndPutQueue(BYTE bScanCode)
         &(stData.bFlags)) == TRUE)
     {
         // 임계 영역 시작
-        bPreviousInterrupt = kLockForSystemData();
+        kLockForSpinLock(&(gs_stKeyboardManager.stSpinLock));
 
         // 키 큐에 삽입
         bResult = kPutQueue(&gs_stKeyQueue, &stData);
 
         // 임계 영역 끝
-        kUnlockForSystemData(bPreviousInterrupt);
+        kUnlockForSpinLock(&(gs_stKeyboardManager.stSpinLock));
     }
 
     return bResult;
@@ -599,12 +603,12 @@ BOOL kGetKeyFromKeyQueue(KEYDATA* pstData)
     }
 
     // 임계 영역 시작
-    bPreviousInterrupt = kLockForSystemData();
+    kLockForSpinLock(&(gs_stKeyboardManager.stSpinLock));
 
     bResult = kGetQueue(&gs_stKeyQueue, pstData);
 
     // 임계 영역 끝
-    kUnlockForSystemData(bPreviousInterrupt);
+    kUnlockForSpinLock(&(gs_stKeyboardManager.stSpinLock));
 
     return bResult;
 }
