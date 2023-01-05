@@ -84,7 +84,8 @@ Synchronization.o: ../Source/Synchronization.c \
  ../Source/MultiProcessor.h
 Task.o: ../Source/Task.c ../Source/Task.h ../Source/Types.h \
  ../Source/List.h ../Source/Synchronization.h ../Source/Descriptor.h \
- ../Source/Utility.h ../Source/AssemblyUtility.h ../Source/Console.h
+ ../Source/Utility.h ../Source/AssemblyUtility.h ../Source/Console.h \
+ ../Source/MultiProcessor.h ../Source/MPConfigurationTable.h
 Utility.o: ../Source/Utility.c ../Source/Utility.h ../Source/Types.h \
  ../Source/AssemblyUtility.h ../Source/Task.h ../Source/List.h \
  ../Source/Synchronization.h
