@@ -8,6 +8,7 @@
         "assemblyutility.h": "c",
         "in.h": "c",
         "modeswitch.h": "c",
-        "localapic.h": "c"
+        "localapic.h": "c",
+        "ioapic.h": "c"
     }
 }
