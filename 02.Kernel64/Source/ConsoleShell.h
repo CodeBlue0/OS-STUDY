@@ -97,4 +97,6 @@ static void kStartTaskLoadBalancing(const char* pcParameterBuffer);
 static void kChangeTaskAffinity(const char* pcParameterBuffer);
 static void kShowVBEModeInfo(const char* pcParameterBuffer);
 
+QWORD kRandom(void);
+
 #endif /*__CONSOLESHELL_H__*/

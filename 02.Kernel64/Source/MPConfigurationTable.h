@@ -3,6 +3,8 @@
 
 #include "Types.h"
 
+// 1024×768 해상도에 16비트(64K)
+
 // 매크로
 // MP 플로팅 포인터의 특성 바이트(Feature Byte)
 #define MP_FLOATINGPOINTER_FEATUREBYTE1_USEMPTABLE  0x00
