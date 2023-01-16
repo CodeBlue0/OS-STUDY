@@ -37,14 +37,14 @@ InterruptHandler.o: ../Source/InterruptHandler.c \
  ../Source/Synchronization.h ../Source/Console.h ../Source/Utility.h \
  ../Source/Task.h ../Source/List.h ../Source/Descriptor.h \
  ../Source/AssemblyUtility.h ../Source/HardDisk.h ../Source/LocalAPIC.h \
- ../Source/MPConfigurationTable.h ../Source/IOAPIC.h
+ ../Source/MPConfigurationTable.h ../Source/IOAPIC.h ../Source/Mouse.h
 IOAPIC.o: ../Source/IOAPIC.c ../Source/IOAPIC.h ../Source/Types.h \
  ../Source/MPConfigurationTable.h ../Source/PIC.h ../Source/Utility.h \
  ../Source/Console.h
 Keyboard.o: ../Source/Keyboard.c ../Source/Types.h \
  ../Source/AssemblyUtility.h ../Source/Task.h ../Source/List.h \
  ../Source/Synchronization.h ../Source/Keyboard.h ../Source/Queue.h \
- ../Source/Utility.h
+ ../Source/Utility.h ../Source/Mouse.h
 List.o: ../Source/List.c ../Source/List.h ../Source/Types.h
 LocalAPIC.o: ../Source/LocalAPIC.c ../Source/LocalAPIC.h \
  ../Source/Types.h ../Source/MPConfigurationTable.h
@@ -55,7 +55,12 @@ Main.o: ../Source/Main.c ../Source/Types.h ../Source/Keyboard.h \
  ../Source/PIT.h ../Source/DynamicMemory.h ../Source/HardDisk.h \
  ../Source/FileSystem.h ../Source/CacheManager.h ../Source/SerialPort.h \
  ../Source/Queue.h ../Source/MultiProcessor.h ../Source/LocalAPIC.h \
- ../Source/VBE.h ../Source/2DGraphics.h
+ ../Source/VBE.h ../Source/2DGraphics.h ../Source/MPConfigurationTable.h \
+ ../Source/Mouse.h ../Source/InterruptHandler.h
+Mouse.o: ../Source/Mouse.c ../Source/Mouse.h ../Source/Types.h \
+ ../Source/Synchronization.h ../Source/Keyboard.h ../Source/Queue.h \
+ ../Source/AssemblyUtility.h ../Source/Task.h ../Source/List.h \
+ ../Source/Utility.h
 MPConfigurationTable.o: ../Source/MPConfigurationTable.c \
  ../Source/MPConfigurationTable.h ../Source/Types.h ../Source/Console.h \
  ../Source/Utility.h
