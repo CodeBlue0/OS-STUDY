@@ -545,3 +545,4 @@ void kMemSetWord(void* pvDestination, WORD wData, int iWordSize)
         ((WORD*) pvDestination)[iRemainByteStartOffset++] = wData;
     }
 }
+

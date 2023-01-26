@@ -5,6 +5,8 @@
 #include "Synchronization.h"
 #include "2DGraphics.h"
 #include "List.h"
+#include "Queue.h"
+#include "Keyboard.h"
 
 // 매크로
 // 윈도우를 생성할 수 있는 최대 개수
@@ -47,6 +49,9 @@
 #define WINDOW_COLOR_XBUTTONLINECOLOR       RGB(71, 199, 21)
 
 // 배경 윈도우의 제목
+#define WINDOW_COLOR_TITLEBARACTIVEBACKGROUND   RGB(79, 204, 11)
+#define WINDOW_COLOR_TITLEBARINACTIVEBACKGROUND RGB(55, 135, 11)
+
 #define WINDOW_BACKGROUNDWINDOWTITLE        "SYS_BACKGROUND"
 
 // 마우스 커서의 너비와 높이
@@ -58,7 +63,86 @@
 #define MOUSE_CURSOR_OUTER                  RGB(79, 204, 11)
 #define MOUSE_CURSOR_INNER                  RGB(232, 255, 232)
 
+#define EVENTQUEUE_WINDOWMAXCOUNT           100
+#define EVENTQUEUE_WINDOWMANAGERMAXCOUNT    WINDOW_MAXCOUNT
+
+#define EVENT_UNKNOWN                                   0
+#define EVENT_MOUSE_MOVE                                1
+#define EVENT_MOUSE_LBUTTONDOWN                         2
+#define EVENT_MOUSE_LBUTTONUP                           3
+#define EVENT_MOUSE_RBUTTONDOWN                         4
+#define EVENT_MOUSE_RBUTTONUP                           5
+#define EVENT_MOUSE_MBUTTONDOWN                         6
+#define EVENT_MOUSE_MBUTTONUP                           7
+
+#define EVENT_WINDOW_SELECT                             8
+#define EVENT_WINDOW_DESELECT                           9
+#define EVENT_WINDOW_MOVE                               10
+#define EVENT_WINDOW_RESIZE                             11
+#define EVENT_WINDOW_CLOSE                              12
+
+#define EVENT_KEY_DOWN                                  13
+#define EVENT_KEY_UP                                    14
+
+#define EVENT_WINDOWMANAGER_UPDATESCREENBYID            15
+#define EVENT_WINDOWMANAGER_UPDATESCREENBYWINDOWAREA    16
+#define EVENT_WINDOWMANAGER_UPDATESCREENBYSCREENAREA    17
+
 // 구조체
+// 마우스 이벤트 자료구조
+typedef struct kMouseEventStruct
+{
+    // 윈도우 ID
+    QWORD qwWindowID;
+    // 마우스 X, Y좌표와 버튼의 상태
+    POINT stPoint;
+    BYTE bButtonStatus;
+} MOUSEEVENT;
+
+// 키 이벤트 자료구조
+typedef struct kKeyEventStruct
+{
+    // 윈도우 ID
+    QWORD qwWindowID;
+    
+    // 키의 ASCII 코드와 스캔 코드
+    BYTE bASCIICode;
+    BYTE bScanCode; 
+    
+    // 키 플래그
+    BYTE bFlags;
+} KEYEVENT;
+
+// 윈도우 이벤트 자료구조
+typedef struct kWindowEventStruct
+{
+    // 윈도우 ID
+    QWORD qwWindowID;
+    
+    // 영역 정보
+    RECT stArea;
+} WINDOWEVENT;
+
+// 이벤트 자료구조
+typedef struct kEventStruct
+{
+    // 이벤트 타입
+    QWORD qwType;
+    
+    // 이벤트 데이터 영역을 정의한 공용체
+    union
+    {
+        // 마우스 이벤트 관련 데이터
+        MOUSEEVENT stMouseEvent;
+        // 키 이벤트 관련 데이터
+        KEYEVENT stKeyEvent;
+        // 윈도우 이벤트 관련 데이터
+        WINDOWEVENT stWindowEvent;
+        // 위의 이벤트 외에 유저 이벤트를 위한 데이터
+        QWORD vqwData[3];
+    };
+} EVENT;
+
 // 윈도우의 정보를 저장하는 자료구조
 typedef struct kWindowStruct
 {
@@ -79,9 +163,13 @@ typedef struct kWindowStruct
     
     // 윈도우 속성
     DWORD dwFlags;
+
+    // 이벤트 큐와 큐에서 사용할 버퍼
+    QUEUE stEventQueue;
+    EVENT* pstEventBuffer;
     
     // 윈도우 제목
-    char vcWindowTitle[ WINDOW_TITLEMAXLENGTH + 1 ];
+    char vcWindowTitle[WINDOW_TITLEMAXLENGTH + 1];
 } WINDOW;
 
 // 윈도우 풀의 상태를 관리하는 자료구조
@@ -120,6 +208,17 @@ typedef struct kWindowManagerStruct
 
     // 배경 윈도우의 ID
     QWORD qwBackgroundWindowID;
+
+    // 이벤트 큐와 큐에서 사용할 버퍼
+    QUEUE stEventQueue;
+    EVENT* pstEventBuffer;
+
+    // 마우스 버튼의 이전 상태
+    BYTE bPreviousButtonStatus;
+
+    // 이동 중인 윈도우의 ID와 윈도우 이동 모드
+    QWORD qwMovingWindowID;
+    BOOL bWindowMoveMode;
 } WINDOWMANAGER;
 
 // 함수
@@ -143,11 +242,46 @@ BOOL kShowWindow(QWORD qwWindowID, BOOL bShow);
 BOOL kRedrawWindowByArea(const RECT* pstArea);
 static void kCopyWindowBufferToFrameBuffer(const WINDOW* pstWindow,
     const RECT* pstCopyArea);
+QWORD kFindWindowByPoint(int iX, int iY);
+QWORD kFindWindowByTitle(const char* pcTitle);
+BOOL kIsWindowExist(QWORD qwWindowID);
+QWORD kGetTopWindowID(void);
+BOOL kMoveWindowToTop(QWORD qwWindowID);
+BOOL kIsInTitleBar(QWORD qwWindowID, int iX, int iY);
+BOOL kIsInCloseButton(QWORD qwWindowID, int iX, int iY);
+BOOL kMoveWindow(QWORD qwWindowID, int iX, int iY);
+static BOOL kUpdateWindowTitle(QWORD qwWindowID, BOOL bSelectedTitle);
+
+// 좌표 변환 관련
+BOOL kGetWindowArea(QWORD qwWindowID, RECT* pstArea);
+BOOL kConvertPointScreenToClient(QWORD qwWindowID, const POINT* pstXY,
+    POINT* pstXYInWindow);
+BOOL kConvertPointClientToScreen(QWORD qwWindowID, const POINT* pstXY,
+    POINT* pstXYInScreen);
+BOOL kConvertRectScreenToClient(QWORD qwWindowID, const RECT* pstArea,
+    RECT* pstAreaInWindow);
+BOOL kConvertRectClientToScreen(QWORD qwWindowID, const RECT* pstArea,
+    RECT* pstAreaInScreen);
+
+// 화면 업데이트 관련
+BOOL kUpdateScreenByID(QWORD qwWindowID);
+BOOL kUpdateScreenByWindowArea(QWORD qwWindowID, const RECT* pstArea);
+BOOL kUpdateScreenByScreenArea(const RECT* pstArea);
+
+// 이벤트 큐 관련
+BOOL kSendEventToWindow(QWORD qwWindowID, const EVENT* pstEvent);
+BOOL kReceiveEventFromWindowQueue(QWORD qwWindowID, EVENT* pstEvent);
+BOOL kSendEventToWindowManager(const EVENT* pstEvent);
+BOOL kReceiveEventFromWindowManagerQueue(EVENT* pstEvent);
+BOOL kSetMouseEvent(QWORD qwWindowID, QWORD qwEventType, int iMouseX, int iMouseY,
+    BYTE bButtonStatus, EVENT* pstEvent);
+BOOL kSetWindowEvent(QWORD qwWindowID, QWORD qwEventType, EVENT* pstEvent);
+void kSetKeyEvent(QWORD qwWindow, const KEYDATA* pstKeyData, EVENT* pstEvent);
 
 // 윈도우 내부에 그리는 함수와 마우스 커서 관련
 BOOL kDrawWindowFrame(QWORD qwWindowID);
 BOOL kDrawWindowBackground(QWORD qwWindowID);
-BOOL kDrawWindowTitle(QWORD qwWindowID, const char* pcTitle);
+BOOL kDrawWindowTitle(QWORD qwWindowID, const char* pcTitle, BOOL bSelectedTitle);
 BOOL kDrawButton(QWORD qwWindowID, RECT* pstButtonArea, COLOR stBackgroundColor,
     const char* pcText, COLOR stTextColor);
 BOOL kDrawPixel(QWORD qwWindowID, int iX, int iY, COLOR stColor);
