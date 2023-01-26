@@ -6,6 +6,7 @@
 #include "Task.h"
 #include "MultiProcessor.h"
 #include "Utility.h"
+#include "GUITask.h"
 
 // 윈도우 매니저 태스크
 // void kStartWindowManager(void)
@@ -201,11 +202,6 @@ BOOL kProcessMouseData(void)
                     kSetWindowEvent(qwWindowIDUnderMouse, EVENT_WINDOW_CLOSE,
                         &stEvent);
                     kSendEventToWindow(qwWindowIDUnderMouse, &stEvent);
-
-                    //----------------------------------------------------------
-                    // 테스트를 위해 일시적으로 추가된 부분
-                    //----------------------------------------------------------
-                    kDeleteWindow(qwWindowIDUnderMouse);
                 }
                 // 닫기 버튼이 아니면 윈도우 이동 모드로 변경
                 else
@@ -260,18 +256,9 @@ BOOL kProcessMouseData(void)
             //------------------------------------------------------------------
             // 테스트를 위해 일시적으로 추가된 부분
             //------------------------------------------------------------------
-            // 테스트를 위해 오른쪽 버튼이 눌리면 윈도우 생성
-            kSPrintf(vcTempTitle, "MINT64 OS Test Window %d", iWindowCount++);
-            qwWindowID = kCreateWindow(iMouseX - 10, iMouseY - WINDOW_TITLEBAR_HEIGHT / 2,
-            400, 200, WINDOW_FLAGS_DRAWFRAME | WINDOW_FLAGS_DRAWTITLE, vcTempTitle);
-                
-            // 윈도우 내부에 텍스트를 출력하고 윈도우를 화면에 나타냄
-            kDrawText(qwWindowID, 10, WINDOW_TITLEBAR_HEIGHT + 10, RGB(0, 0, 0),
-                WINDOW_COLOR_BACKGROUND, "This is real window~!!", 22);
-            kDrawText(qwWindowID, 10, WINDOW_TITLEBAR_HEIGHT + 30, RGB(0, 0, 0),
-                WINDOW_COLOR_BACKGROUND, "Now you can move and select window~!!",
-                37);
-            kShowWindow(qwWindowID, TRUE);
+            // 테스트를 위해 오른쪽 버튼이 눌리면 GUI 태스크를 생성
+            kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, NULL, NULL,
+                (QWORD) kHelloWorldGUITask, TASK_LOADBALANCINGID);
         }
         else
         {
