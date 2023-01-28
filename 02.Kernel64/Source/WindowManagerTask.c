@@ -7,78 +7,7 @@
 #include "MultiProcessor.h"
 #include "Utility.h"
 #include "GUITask.h"
-
-// 윈도우 매니저 태스크
-// void kStartWindowManager(void)
-// {
-//     VBEMODEINFOBLOCK* pstVBEMode;
-//     int iRelativeX, iRelativeY;
-//     int iMouseX, iMouseY;
-//     BYTE bButton;
-//     QWORD qwWindowID;
-//     TCB* pstTask;
-//     char vcTempTitle[WINDOW_TITLEMAXLENGTH];
-//     int iWindowCount = 0;
-
-//     // 윈도우 매니저의 TCB를 반환
-//     pstTask = kGetRunningTask(kGetAPICID());
-
-//     // GUI 시스템을 초기화
-//     kInitializeGUISystem();
-
-//     // 현재 마우스 위치에 커서를 출력
-//     kGetCursorPosition(&iMouseX, &iMouseY);
-//     kMoveCursor(iMouseX, iMouseY);
-
-//     //=====================================================================
-//     // 마우스 이동을 처리하고 마우스 버튼에 따라 윈도우 생성과 삭제 수행
-//     //=====================================================================
-//     while (TRUE)
-//     {
-//          // 마우스 데이터가 수신되기를 기다림
-//         if (kGetMouseDataFromMouseQueue(&bButton, &iRelativeX, &iRelativeY) == 
-//             FALSE)
-//         {
-//             kSleep(0);
-//             continue;
-//         }
-
-//         // 현재 마우스 커서 위치를 반환
-//         kGetCursorPosition(&iMouseX, &iMouseY);
-        
-//         // 마우스가 움직인 거리를 이전 커서 위치에 더해서 현재 좌표를 계산
-//         iMouseX += iRelativeX;
-//         iMouseY += iRelativeY;
-
-//         // 왼쪽 버튼이 눌러지면 윈도우 프로토타입 표시
-//         if (bButton & MOUSE_LBUTTONDOWN)
-//         {
-//             // 현재 마우스 커서가 있는 위치에 윈도우를 생성. 아래 코드에서 윈도우 내부에
-//             // 문자를 출력한 뒤 윈도우를 표시하려고 윈도우 속성에서 WINDOW_FLAGS_SHOW를 제외함
-//             //kSPrintf(vcTempTitle, "MINT64 OS Test Window %d", iWindowCount++);
-//             qwWindowID = kCreateWindow(iMouseX - 10, iMouseY - WINDOW_TITLEBAR_HEIGHT / 2,
-//                 400, 200, WINDOW_FLAGS_DRAWFRAME | WINDOW_FLAGS_DRAWTITLE, vcTempTitle);
-            
-//             // 윈도우 내부에 텍스트 출력하고 윈도우를 화면에 나타냄
-//             kDrawText(qwWindowID, 10, WINDOW_TITLEBAR_HEIGHT + 10, RGB(0, 0, 0),
-//                 WINDOW_COLOR_BACKGROUND, "This is real window~!!", 22);
-//             kDrawText(qwWindowID, 10, WINDOW_TITLEBAR_HEIGHT + 30, RGB(0, 0, 0),
-//                 WINDOW_COLOR_BACKGROUND, "RedTeam Victory!", 18);
-//             kShowWindow(qwWindowID, TRUE);
-//         }
-//         // 오른쪽 버튼이 눌러지면 화면 전체를 배경색으로 채움
-//         else if (bButton & MOUSE_RBUTTONDOWN)
-//         {
-//             // 태스크가 생성한 모든 윈도우를 삭제
-//             kDeleteAllWindowInTaskID(pstTask->stLink.qwID);
-//             iWindowCount = 0;
-//         }
-
-//         // 새로운 위치로 마우스 커서를 이동
-//         kMoveCursor(iMouseX, iMouseY);
-//     }
-
-// }
+#include "Font.h"
 
 // 윈도우 매니저 태스크
 void kStartWindowManager(void)
@@ -87,31 +16,77 @@ void kStartWindowManager(void)
     BOOL bMouseDataResult;
     BOOL bKeyDataResult;
     BOOL bEventQueueResult;
-
+    //-------------------------------------------------------------------------
+    QWORD qwLastTickCount;
+    QWORD qwPreviousLoopExecutionCount;
+    QWORD qwLoopExecutionCount;
+    QWORD qwMinLoopExecutionCount;
+    char vcTemp[40];
+    RECT stLoopCountArea;
+    QWORD qwBackgroundWindowID;
+    //-------------------------------------------------------------------------
+    
     // GUI 시스템을 초기화
     kInitializeGUISystem();
-
+    
     // 현재 마우스 위치에 커서를 출력
     kGetCursorPosition(&iMouseX, &iMouseY);
     kMoveCursor(iMouseX, iMouseY);
-
+    
+    //-------------------------------------------------------------------------
+    // 루프 수행 횟수 측정용 변수 초기화
+    qwLastTickCount = kGetTickCount();
+    qwPreviousLoopExecutionCount = 0;
+    qwLoopExecutionCount = 0;
+    qwMinLoopExecutionCount = 0xFFFFFFFFFFFFFFFF;
+    qwBackgroundWindowID = kGetBackgroundWindowID(); 
+    //-------------------------------------------------------------------------
+    
     // 윈도우 매니저 태스크 루프
     while (TRUE)
     {
+        //-------------------------------------------------------------------------
+        // 1초마다 윈도우 매니저 태스크 루프를 수행한 횟수를 측정하여 최솟값을 기록
+        if (kGetTickCount() - qwLastTickCount > 1000)
+        {
+            qwLastTickCount = kGetTickCount();
+            // 1초 전에 수행한 태스크 루프의 수와 현재 태스크 루프의 수를 빼서
+            // 최소 루프 수행 횟수와 비교하여 최소 루프 수행 횟수를 업데이트
+            if ((qwLoopExecutionCount - qwPreviousLoopExecutionCount) <
+                qwMinLoopExecutionCount)
+            {
+                qwMinLoopExecutionCount = qwLoopExecutionCount - qwPreviousLoopExecutionCount;
+            }
+            qwPreviousLoopExecutionCount = qwLoopExecutionCount;
+            
+            // 루프의 최소 수행 횟수를 1초마다 업데이트
+            kSPrintf(vcTemp, "MIN Loop Execution Count:%d ", qwMinLoopExecutionCount);
+                kDrawText(qwBackgroundWindowID, 0, 0, RGB(0, 0, 0), RGB(255, 255, 255),
+                    vcTemp, kStrLen(vcTemp));
+            
+            // 배경 윈도우 전체를 업데이트하면 시간이 오래 걸리므로 배경 윈도우에
+            // 루프 수행 횟수가 출력된 부분만 업데이트
+            kSetRectangleData(0, 0, kStrLen(vcTemp) * FONT_ENGLISHWIDTH,
+                FONT_ENGLISHHEIGHT, &stLoopCountArea);
+            kRedrawWindowByArea(&stLoopCountArea, qwBackgroundWindowID);
+        }
+        qwLoopExecutionCount++;
+        //-------------------------------------------------------------------------
+        
         // 마우스 데이터를 처리
         bMouseDataResult = kProcessMouseData();
-
+        
         // 키 데이터를 처리
         bKeyDataResult = kProcessKeyData();
 
-        // 윈도우 매니저의 이벤트 큐에 수신된 데이터를 처리, 수신된 모든 이벤트를 처리함
+        // 윈도우 매니저의 이벤트 큐에 수신된 데이터를 처리. 수신된 모든 이벤트를 처리
         bEventQueueResult = FALSE;
         while (kProcessEventQueueData() == TRUE)
         {
             bEventQueueResult = TRUE;
         }
-
-        // 처리한 데이터가 하나도 없다면 Sleep()을 수행하여 프로세서를 양보함
+        
+        // 처리한 데이터가 하나도 없다면 Sleep()을 수행하여 프로세서를 양보
         if ((bMouseDataResult == FALSE) &&
             (bKeyDataResult == FALSE) &&
             (bEventQueueResult == FALSE))
@@ -120,6 +95,47 @@ void kStartWindowManager(void)
         }
     }
 }
+
+// // 윈도우 매니저 태스크
+// void kStartWindowManager(void)
+// {
+//     int iMouseX, iMouseY;
+//     BOOL bMouseDataResult;
+//     BOOL bKeyDataResult;
+//     BOOL bEventQueueResult;
+
+//     // GUI 시스템을 초기화
+//     kInitializeGUISystem();
+
+//     // 현재 마우스 위치에 커서를 출력
+//     kGetCursorPosition(&iMouseX, &iMouseY);
+//     kMoveCursor(iMouseX, iMouseY);
+
+//     // 윈도우 매니저 태스크 루프
+//     while (TRUE)
+//     {
+//         // 마우스 데이터를 처리
+//         bMouseDataResult = kProcessMouseData();
+
+//         // 키 데이터를 처리
+//         bKeyDataResult = kProcessKeyData();
+
+//         // 윈도우 매니저의 이벤트 큐에 수신된 데이터를 처리, 수신된 모든 이벤트를 처리함
+//         bEventQueueResult = FALSE;
+//         while (kProcessEventQueueData() == TRUE)
+//         {
+//             bEventQueueResult = TRUE;
+//         }
+
+//         // 처리한 데이터가 하나도 없다면 Sleep()을 수행하여 프로세서를 양보함
+//         if ((bMouseDataResult == FALSE) &&
+//             (bKeyDataResult == FALSE) &&
+//             (bEventQueueResult == FALSE))
+//         {
+//             kSleep(0);
+//         }
+//     }
+// }
 
 // 수신된 마우스 데이터를 처리
 BOOL kProcessMouseData(void)
@@ -134,44 +150,69 @@ BOOL kProcessMouseData(void)
     EVENT stEvent;
     WINDOWMANAGER* pstWindowManager;
     char vcTempTitle[WINDOW_TITLEMAXLENGTH];
-    static int iWindowCount = 0;
-    QWORD qwWindowID;
-
-    // 마우스 데이터가 수신되기를 기다림
-    if (kGetMouseDataFromMouseQueue(&bButtonStatus, &iRelativeX, &iRelativeY) ==
-        FALSE)
-    {
-        return FALSE;
-    }
+    int i;
 
     // 윈도우 매니저를 반환
     pstWindowManager = kGetWindowManager();
 
-    // 현재 마우스 커서 위치를 변환
-    kGetCursorPosition(&iMouseX, &iMouseY);
+    //--------------------------------------------------------------------------
+    // 마우스 이벤트를 통합하는 부분
+    //--------------------------------------------------------------------------
+    for (i = 0; i < WINDOWMANAGER_DATAACCUMULATECOUNT; i++)
+    {
+        // 마우스 데이터가 수신되기를 기다림
+        if (kGetMouseDataFromMouseQueue(&bButtonStatus, &iRelativeX, &iRelativeY) ==
+            FALSE)
+        {
+            // 처음으로 확인했는데 데이터가 없다면 종료
+            if (i == 0)
+            {
+                return FALSE;
+            }
+            // 처음이 아닌 경우는 이전 루프에서 마우스 이벤트를 수신했으므로
+            // 통합한 이벤트를 처리
+            else
+            {
+                break;
+            }
+        }
 
-    // 움직이기 이전의 좌표를 저장
-    iPreviousMouseX = iMouseX;
-    iPreviousMouseY = iMouseY;
+        // 현재 마우스 커서 위치를 변환
+        kGetCursorPosition(&iMouseX, &iMouseY);
 
-    // 마우스가 움직인 거리를 이전 커서 위치에 더해서 현재 좌표를 계산
-    iMouseX += iRelativeX;
-    iMouseY += iRelativeY;
+        // 처음 마우스 이벤트가 수신된 것이면 현재 좌표를 이전 마우스의 위치로 저장
+        if (i == 0)
+        {
+            // 움직이기 이전의 좌표를 저장
+            iPreviousMouseX = iMouseX;
+            iPreviousMouseY = iMouseY;
+        }
 
-    // 새로운 위치로 마우스 커서를 이동하고 다시 현재 커서의 위치를 반환
-    // 마우스 커서가 화면을 벗어나지 않도록 처리된 커서 좌표를 사용하여 화면을 벗어난
-    // 커서로 인해 발생하는 문제를 방지
-    kMoveCursor(iMouseX, iMouseY);
-    kGetCursorPosition(&iMouseX, &iMouseY);
+        // 마우스가 움직인 거리를 이전 커서 위치에 더해서 현재 좌표를 계산
+        iMouseX += iRelativeX;
+        iMouseY += iRelativeY;
 
+        // 새로운 위치로 마우스 커서를 이동하고 다시 현재 커서의 위치를 반환
+        // 마우스 커서가 화면을 벗어나지 않도록 처리된 커서 좌표를 사용하여 화면을 벗어난
+        // 커서로 인해 발생하는 문제를 방지
+        kMoveCursor(iMouseX, iMouseY);
+        kGetCursorPosition(&iMouseX, &iMouseY);
+
+        // 버튼 상태는 이전 버튼 상태와 현재 버튼 상태를 XOR하여 1로 설정됐는지를 확인
+        bChangedButton = pstWindowManager->bPreviousButtonStatus ^ bButtonStatus;
+
+        // 마우스가 움직였으나 버튼의 변화가 있다면 바로 이벤트 처리
+        if (bChangedButton != 0)
+        {
+            break;
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    // 마우스 이벤트를 처리하는 부분
+    //--------------------------------------------------------------------------
     // 현재 마우스 커서 아래에 있는 윈도우를 검색
     qwWindowIDUnderMouse = kFindWindowByPoint(iMouseX, iMouseY);
-
-    //--------------------------------------------------------------------------
-    // 버튼 상태가 변했는지 확인하고 버튼 상태에 따라 마우스 메시지와 윈도우 메시지를 전송
-    //--------------------------------------------------------------------------
-    // 버튼 상태는 이전 버튼 상태와 현재 버튼 상태를 XOR하여 1로 설정됐는지를 확인
-    bChangedButton = pstWindowManager->bPreviousButtonStatus ^ bButtonStatus;
 
     // 마우스 왼쪽 버튼에 변화가 생긴 경우 처리
     if (bChangedButton & MOUSE_LBUTTONDOWN)
@@ -346,48 +387,142 @@ BOOL kProcessKeyData(void)
 // 이벤트 큐에 수신된 이벤트 처리
 BOOL kProcessEventQueueData(void)
 {
-    EVENT stEvent;
+    EVENT vstEvent[WINDOWMANAGER_DATAACCUMULATECOUNT];
+    int iEventCount;
     WINDOWEVENT* pstWindowEvent;
+    WINDOWEVENT* pstNextWindowEvent;
     QWORD qwWindowID;
     RECT stArea;
+    RECT stOverlappedArea;
+    int i;
+    int j;
 
-    // 윈도우 매니저의 이벤트 큐에 이벤트가 수신되기를 기다림
-    if (kReceiveEventFromWindowManagerQueue(&stEvent) == FALSE)
+    //--------------------------------------------------------------------------
+    // 윈도우 매니저 태스크의 이벤트 큐에 수신된 이벤트를 통합하는 부분
+    //--------------------------------------------------------------------------
+    for (i = 0; i < WINDOWMANAGER_DATAACCUMULATECOUNT; i++)
     {
-        return FALSE;
+        // 이벤트가 수신되기를 기다림
+        if (kReceiveEventFromWindowManagerQueue(&(vstEvent[i])) == FALSE)
+        {
+            // 처음부터 이벤트가 수신되지 않았으면 종료
+            if (i == 0)
+            {
+                return FALSE;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        pstWindowEvent = &(vstEvent[i].stWindowEvent);
+        // 윈도우 ID로 업데이트하는 이벤트가 수신되면 윈도우 영역을 이벤트 데이터에 삽입
+        if (vstEvent[i].qwType == EVENT_WINDOWMANAGER_UPDATESCREENBYID)
+        {
+            // 윈도우의 크기를 이벤트 자료구조에 삽입
+            if (kGetWindowArea(pstWindowEvent->qwWindowID, &stArea) == FALSE)
+            {
+                kSetRectangleData(0, 0, 0, 0, &(pstWindowEvent->stArea));
+            }
+            else
+            {
+                kSetRectangleData(0, 0, kGetRectangleWidth(&stArea) - 1,
+                    kGetRectangleHeight(&stArea) - 1, &(pstWindowEvent->stArea));
+            }
+        }
     }
 
-    pstWindowEvent = &(stEvent.stWindowEvent);
+    // 저장된 이벤트를 검사하면서 합칠 수 있는 이벤트는 하나도 만듦
+    iEventCount = i;
 
-    // 타입별로 처리
-    switch (stEvent.qwType)
+    for (j = 0; j < iEventCount; j++)
     {
-    // 현재 윈도우가 있는 영역을 화면에 업데이트
-    case EVENT_WINDOWMANAGER_UPDATESCREENBYID:
-        if (kGetWindowArea(pstWindowEvent->qwWindowID, &stArea) == TRUE)
+        // 수신된 이벤트 중에 이벤트 중에서 이번에 처리할 것과 같은 윈도우에서
+        // 발생하는 윈도우 이벤트를 검색
+        pstWindowEvent = &(vstEvent[j].stWindowEvent);
+        if ((vstEvent[j].qwType != EVENT_WINDOWMANAGER_UPDATESCREENBYID) &&
+            (vstEvent[j].qwType != EVENT_WINDOWMANAGER_UPDATESCREENBYSCREENAREA) &&
+            (vstEvent[j].qwType != EVENT_WINDOWMANAGER_UPDATESCREENBYWINDOWAREA))
         {
-            kRedrawWindowByArea(&stArea);
+            continue;
         }
-        break;
 
-    // 윈도우의 내부 영역을 화면에 업데이트
-    case EVENT_WINDOWMANAGER_UPDATESCREENBYWINDOWAREA:
-        // 윈도우를 기준으로 한 좌표를 화면 좌표로 변환하여 업데이트 처리
-        if (kConvertRectClientToScreen(pstWindowEvent->qwWindowID,
-            &(pstWindowEvent->stArea), &stArea) == TRUE)
+        // 수신한 이벤트의 끝까지 루프를 수행하면서 수신된 이벤트를 검사
+        for (i = j + 1; i < iEventCount; i++)
         {
-            kRedrawWindowByArea(&stArea);
+            pstNextWindowEvent = &(vstEvent[i].stWindowEvent);
+            // 화면 업데이트가 아니거나 윈도우 ID가 일치하지 않으면 제외
+            if ((vstEvent[j].qwType != EVENT_WINDOWMANAGER_UPDATESCREENBYID) &&
+                (vstEvent[j].qwType != EVENT_WINDOWMANAGER_UPDATESCREENBYSCREENAREA) &&
+                (vstEvent[j].qwType != EVENT_WINDOWMANAGER_UPDATESCREENBYWINDOWAREA) ||
+                (pstWindowEvent->qwWindowID != pstNextWindowEvent->qwWindowID))
+            {
+                continue;
+            }
+
+            // 겹치는 영역을 계산하여 겹치지 않으면 제외
+            if (kGetOverlappedRectangle(&(pstWindowEvent->stArea),
+                &(pstNextWindowEvent->stArea), &stOverlappedArea) == FALSE)
+            {
+                continue;
+            }
+
+            // 두 영역이 일치하거나 어느 한쪽이 포함되면 이벤트를 통합
+            if (kMemCmp(&(pstWindowEvent->stArea), &stOverlappedArea, 
+                        sizeof(RECT)) == 0)
+            {
+                // 현재 이벤트의 윈도우의 영역이 겹치는 영역과 일치한다면
+                // 다음 이벤트의 윈도우 영역이 현재 윈도우 영역과 같거나 포함
+                // 따라서 현재 이벤트에 다음 이벤트의 윈도우 영역을 복사하고
+                // 다음 이벤트는 삭제
+                kMemCpy(&(pstWindowEvent->stArea), &(pstNextWindowEvent->stArea),
+                        sizeof(RECT));
+                vstEvent[i].qwType = EVENT_UNKNOWN;
+            }
+            else if (kMemCmp(&(pstNextWindowEvent->stArea), &stOverlappedArea, 
+                            sizeof(RECT)) == 0)
+            {
+                // 다음 이벤트의 윈도우의 영역이 겹치는 영역과 일치한다면
+                // 현재 이벤트의 윈도우 영역이 다음 윈도우 영역과 같거나 포함
+                // 따라서 윈도우 영역을 복사하지 않고 다음 이벤트를 삭제
+                vstEvent[i].qwType = EVENT_UNKNOWN;
+            }
         }
-        break;
+    }
+
+    // 통합된 이벤트를 모두 처리
+    for (i = 0; i < iEventCount; i++)
+    {
+        pstWindowEvent = &(vstEvent[i].stWindowEvent);
+
+        // 타입별로 처리
+        switch (vstEvent[i].qwType)
+        {
+            // 현재 윈도우가 있는 영역을 화면에 업데이트
+        case EVENT_WINDOWMANAGER_UPDATESCREENBYID:
+            // 윈도우의 내부 영역을 화면에 업데이트
+        case EVENT_WINDOWMANAGER_UPDATESCREENBYWINDOWAREA:
+            // 윈도우를 기준으로 한 좌표를 화면 좌표로 변환하여 업데이트 처리
+            if (kConvertRectClientToScreen(pstWindowEvent->qwWindowID,
+                &(pstWindowEvent->stArea), &stArea) == TRUE)
+            {
+                // 윈도우 영역은 위에서 했으므로 그대로 화면 업데이트 함수를 호출
+                kRedrawWindowByArea(&stArea, pstWindowEvent->qwWindowID);
+            }
+            break;
+        
+        // 화면 좌표로 전달된 영역을 화면에 업데이트
+        case EVENT_WINDOWMANAGER_UPDATESCREENBYSCREENAREA:
+            kRedrawWindowByArea(&(pstWindowEvent->stArea), WINDOW_INVALIDID);
+            break;
+
+        default:
+            break;
+        }
+    }
+
     
-    // 화면 좌표로 전달된 영역을 화면에 업데이트
-    case EVENT_WINDOWMANAGER_UPDATESCREENBYSCREENAREA:
-        kRedrawWindowByArea(&(pstWindowEvent->stArea));
-        break;
-
-    default:
-        break;
-    }
 
     return TRUE;
 }

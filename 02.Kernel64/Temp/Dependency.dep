@@ -114,4 +114,4 @@ WindowManagerTask.o: ../Source/WindowManagerTask.c ../Source/Types.h \
  ../Source/List.h ../Source/Queue.h ../Source/Keyboard.h \
  ../Source/WindowManagerTask.h ../Source/VBE.h ../Source/Mouse.h \
  ../Source/Task.h ../Source/MultiProcessor.h ../Source/Utility.h \
- ../Source/GUITask.h
+ ../Source/GUITask.h ../Source/Font.h
