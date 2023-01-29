@@ -37,7 +37,9 @@ FileSystem.o: ../Source/FileSystem.c ../Source/FileSystem.h \
 GUITask.o: ../Source/GUITask.c ../Source/GUITask.h ../Source/Types.h \
  ../Source/Window.h ../Source/Synchronization.h ../Source/2DGraphics.h \
  ../Source/List.h ../Source/Queue.h ../Source/Keyboard.h \
- ../Source/Utility.h ../Source/Console.h
+ ../Source/Utility.h ../Source/Console.h ../Source/MultiProcessor.h \
+ ../Source/MPConfigurationTable.h ../Source/Task.h \
+ ../Source/DynamicMemory.h ../Source/Font.h
 HardDisk.o: ../Source/HardDisk.c ../Source/HardDisk.h ../Source/Types.h \
  ../Source/Synchronization.h ../Source/AssemblyUtility.h ../Source/Task.h \
  ../Source/List.h ../Source/Utility.h ../Source/Console.h
