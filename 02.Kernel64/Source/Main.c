@@ -151,7 +151,7 @@ void Main(void)
 
     // 멀티코어 프로세서 모드로 전환
     // Application Processor 활성화, I/O 모드 활성화, 인터럽트와 태스크 부하 분산 기능 활성화
-    kPrintf("Change To MultiCore Processor Mode..........[    ]\n");
+    kPrintf("Change To MultiCore Processor Mode..........[    ]");
     if (kChangeToMultiCoreMode() == TRUE)
     {
         kSetCursor(45, iCursorY++);

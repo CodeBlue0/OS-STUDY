@@ -30,4 +30,8 @@ void kSystemMonitorTask(void);
 static void kDrawProcessorInformation(QWORD qwWindowID, int iX, int iY, BYTE bAPICID);
 static void kDrawMemoryInformation(QWORD qwWindowID, int iY, int iWindowWidth);
 
+// GUI 콘솔 셸 태스크 함수
+void kGUIConsoleShellTask(void);
+static void kProcessConsoleBuffer(QWORD qwWindowID);
+
 #endif /*__GUITASK_H__*/

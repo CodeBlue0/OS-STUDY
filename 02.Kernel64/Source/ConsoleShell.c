@@ -23,31 +23,18 @@
 // 커맨드 테이블 정의
 SHELLCOMMANDENTRY gs_vstCommandTable[] =
 {
-    { "help", "Show Help", kHelp},
+    { "help", "Show Help", kHelp },
     { "cls", "Clear Screen", kCls },
     { "totalram", "Show Total RAM Size", kShowTotalRAMSize },
-    { "strtod", "String To Decial/Hex Convert", kStringToDecimalHexTest },
     { "shutdown", "Shutdown And Reboot OS", kShutdown },
-    { "settimer", "Set PIT Controller Counter0, ex)settimer 10(ms) 1(periodic)",
-        kSetTimer },
-    { "wait", "Wait ms Using PIT, ex)wait 100(ms)", kWaitUsingPIT },
-    { "rdtsc", "Read Time Stamp Counter", kReadTimeStampCounter },
     { "cpuspeed", "Measure Processor Speed", kMeasureProcessorSpeed },
     { "date", "Show Date And Time", kShowDateAndTime },
-    { "createtask", "Create Task, ex)createtask 1(type) 10(count)", kCreateTestTask },
-    { "changepriority", "Change Task Priority, ex)changepriority 1(ID) 2(Priority)",
-        kChangeTaskPriority },
+    { "changepriority", "Change Task Priority, ex)changepriority 1(ID) 2(Priority)", kChangeTaskPriority },
     { "tasklist", "Show Task List", kShowTaskList },
     { "killtask", "End Task, ex)killtask 1(ID) or 0xffffffff(All Task)", kKillTask },
     { "cpuload", "Show Processor Load", kCPULoad },
-    { "testmutex", "Test Mutex Function", kTestMutex },
-    { "testthread", "Test Thread And Process Function", kTestThread },
     { "showmatrix", "Show Matrix Screen", kShowMatrix },
-    { "testpie", "Test PIE Calculation", kTestPIE }, 
     { "dynamicmeminfo", "Show Dyanmic Memory Information", kShowDyanmicMemoryInformation },
-    { "testseqalloc", "Test Sequential Allocation & Free", kTestSequentialAllocation },
-    { "testranalloc", "Test Random Allocation & Free", kTestRandomAllocation },
-    { "testranalloc", "Test Random Allocation & Free", kTestRandomAllocation },
     { "hddinfo", "Show HDD Information", kShowHDDInformation },
     { "readsector", "Read HDD Sector, ex)readsector 0(LBA) 10(count)", kReadSector },
     { "writesector", "Write HDD Sector, ex)writesector 0(LBA) 10(count)", kWriteSector },
@@ -56,22 +43,15 @@ SHELLCOMMANDENTRY gs_vstCommandTable[] =
     { "filesysteminfo", "Show File System Information", kShowFileSystemInformation },
     { "createfile", "Create File, ex)createfile a.txt", kCreateFileInRootDirectory },
     { "deletefile", "Delete File, ex)deletefile a.txt", kDeleteFileInRootDirectory },
-    { "ls", "Show Directory", kShowRootDirectory },
+    { "dir", "Show Directory", kShowRootDirectory },
     { "writefile", "Write Data To File, ex) writefile a.txt", kWriteDataToFile },
     { "readfile", "Read Data From File, ex) readfile a.txt", kReadDataFromFile },
-    { "testfileio", "Test File I/O Function", kTestFileIO },
-    { "testperformance", "Test File Read/WritePerformance", kTestPerformance },
     { "flush", "Flush File System Cache", kFlushCache },
     { "download", "Download Data From Serial, ex) download a.txt", kDownloadFile },
     { "showmpinfo", "Show MP Configuration Table Information", kShowMPConfigurationTable },
-    { "startap", "Start Application Processor", kStartApplicationProcessor },
-    { "startsymmetricio", "Start Symmetric I/O Mode", kStartSymmetricIOMode },
     { "showirqintinmap", "Show IRQ->INITIN Mapping Table", kShowIRQINTINMappingTable },
     { "showintproccount", "Show Interrupt Processing Count", kShowInterruptProcessingCount },
-    { "startintloadbal", "Start Interrupt Load Balancing", kStartInterruptLoadBalancing },
-    { "starttaskloadbal", "Start Task Load Balancing", kStartTaskLoadBalancing },
-    { "changeaffinity", "Change Task Affinity, ex)changeaffinity 1(ID) 0xFF(Affinity)",
-        kChangeTaskAffinity },
+    { "changeaffinity", "Change Task Affinity, ex)changeaffinity 1(ID) 0xFF(Affinity)", kChangeTaskAffinity },
     { "vbemodeinfo", "Show VBE Mode Information", kShowVBEModeInfo },
 };
 
@@ -85,14 +65,25 @@ void kStartConsoleShell(void)
     int iCommandBufferIndex = 0;
     BYTE bKey;
     int iCursorX, iCursorY;
+    CONSOLEMANAGER* pstConsoleManager;
+
+    // 콘솔을 관리하는 자료구조를 반환
+    pstConsoleManager = kGetConsoleManager();
 
     // 프롬프트 출력
     kPrintf(CONSOLESHELL_PROMPTMESSAGE);
 
-    while (TRUE)
+    while (pstConsoleManager->bExit == FALSE)
     {
         // 키가 수신될 때까지 대기
         bKey = kGetCh();
+
+        // 콘솔 셸 종료 플래그가 설정되면 루프를 종료
+        if (pstConsoleManager->bExit == TRUE)
+        {
+            break;
+        }
+
         // Backspace 키 처리
         if (bKey == KEY_BACKSPACE)
         {
@@ -130,7 +121,7 @@ void kStartConsoleShell(void)
         {
             ;
         }
-        else 
+        else if (bKey < 128)
         {
             // TAB은 공백으로 전환
             if (bKey == KEY_TAB)
@@ -1013,7 +1004,7 @@ static void kDropCharactorThread( void )
         {
             for (i = 0; i < CONSOLE_HEIGHT - 1; i++)
             {
-                vcText[ 0 ] = i + kRandom();
+                vcText[0] = i + kRandom() % 128;
                 kPrintStringXY(iX, i, vcText);
                 kSleep(5);
             }
