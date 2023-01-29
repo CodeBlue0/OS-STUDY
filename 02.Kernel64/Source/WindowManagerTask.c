@@ -8,6 +8,7 @@
 #include "Utility.h"
 #include "GUITask.h"
 #include "Font.h"
+#include "ApplicationPanelTask.h"
 
 // 윈도우 매니저 태스크
 void kStartWindowManager(void)
@@ -16,77 +17,35 @@ void kStartWindowManager(void)
     BOOL bMouseDataResult;
     BOOL bKeyDataResult;
     BOOL bEventQueueResult;
-    //-------------------------------------------------------------------------
-    QWORD qwLastTickCount;
-    QWORD qwPreviousLoopExecutionCount;
-    QWORD qwLoopExecutionCount;
-    QWORD qwMinLoopExecutionCount;
-    char vcTemp[40];
-    RECT stLoopCountArea;
-    QWORD qwBackgroundWindowID;
-    //-------------------------------------------------------------------------
-    
+
     // GUI 시스템을 초기화
     kInitializeGUISystem();
-    
+
     // 현재 마우스 위치에 커서를 출력
     kGetCursorPosition(&iMouseX, &iMouseY);
     kMoveCursor(iMouseX, iMouseY);
-    
-    //-------------------------------------------------------------------------
-    // 루프 수행 횟수 측정용 변수 초기화
-    qwLastTickCount = kGetTickCount();
-    qwPreviousLoopExecutionCount = 0;
-    qwLoopExecutionCount = 0;
-    qwMinLoopExecutionCount = 0xFFFFFFFFFFFFFFFF;
-    qwBackgroundWindowID = kGetBackgroundWindowID(); 
-    //-------------------------------------------------------------------------
-    
+
+    // 애플리케이션 패널 태스크를 실행
+    kCreateTask(TASK_FLAGS_SYSTEM | TASK_FLAGS_THREAD | TASK_FLAGS_LOW, 0, 0,
+        (QWORD) kApplicationPanelGUITask, TASK_LOADBALANCINGID);
+
     // 윈도우 매니저 태스크 루프
     while (TRUE)
     {
-        //-------------------------------------------------------------------------
-        // 1초마다 윈도우 매니저 태스크 루프를 수행한 횟수를 측정하여 최솟값을 기록
-        if (kGetTickCount() - qwLastTickCount > 1000)
-        {
-            qwLastTickCount = kGetTickCount();
-            // 1초 전에 수행한 태스크 루프의 수와 현재 태스크 루프의 수를 빼서
-            // 최소 루프 수행 횟수와 비교하여 최소 루프 수행 횟수를 업데이트
-            if ((qwLoopExecutionCount - qwPreviousLoopExecutionCount) <
-                qwMinLoopExecutionCount)
-            {
-                qwMinLoopExecutionCount = qwLoopExecutionCount - qwPreviousLoopExecutionCount;
-            }
-            qwPreviousLoopExecutionCount = qwLoopExecutionCount;
-            
-            // 루프의 최소 수행 횟수를 1초마다 업데이트
-            kSPrintf(vcTemp, "MIN Loop Execution Count:%d ", qwMinLoopExecutionCount);
-                kDrawText(qwBackgroundWindowID, 0, 0, RGB(0, 0, 0), RGB(255, 255, 255),
-                    vcTemp, kStrLen(vcTemp));
-            
-            // 배경 윈도우 전체를 업데이트하면 시간이 오래 걸리므로 배경 윈도우에
-            // 루프 수행 횟수가 출력된 부분만 업데이트
-            kSetRectangleData(0, 0, kStrLen(vcTemp) * FONT_ENGLISHWIDTH,
-                FONT_ENGLISHHEIGHT, &stLoopCountArea);
-            kRedrawWindowByArea(&stLoopCountArea, qwBackgroundWindowID);
-        }
-        qwLoopExecutionCount++;
-        //-------------------------------------------------------------------------
-        
         // 마우스 데이터를 처리
         bMouseDataResult = kProcessMouseData();
-        
+
         // 키 데이터를 처리
         bKeyDataResult = kProcessKeyData();
 
-        // 윈도우 매니저의 이벤트 큐에 수신된 데이터를 처리. 수신된 모든 이벤트를 처리
+        // 윈도우 매니저의 이벤트 큐에 수신된 데이터를 처리, 수신된 모든 이벤트를 처리함
         bEventQueueResult = FALSE;
         while (kProcessEventQueueData() == TRUE)
         {
             bEventQueueResult = TRUE;
         }
-        
-        // 처리한 데이터가 하나도 없다면 Sleep()을 수행하여 프로세서를 양보
+
+        // 처리한 데이터가 하나도 없다면 Sleep()을 수행하여 프로세서를 양보함
         if ((bMouseDataResult == FALSE) &&
             (bKeyDataResult == FALSE) &&
             (bEventQueueResult == FALSE))
@@ -95,47 +54,6 @@ void kStartWindowManager(void)
         }
     }
 }
-
-// // 윈도우 매니저 태스크
-// void kStartWindowManager(void)
-// {
-//     int iMouseX, iMouseY;
-//     BOOL bMouseDataResult;
-//     BOOL bKeyDataResult;
-//     BOOL bEventQueueResult;
-
-//     // GUI 시스템을 초기화
-//     kInitializeGUISystem();
-
-//     // 현재 마우스 위치에 커서를 출력
-//     kGetCursorPosition(&iMouseX, &iMouseY);
-//     kMoveCursor(iMouseX, iMouseY);
-
-//     // 윈도우 매니저 태스크 루프
-//     while (TRUE)
-//     {
-//         // 마우스 데이터를 처리
-//         bMouseDataResult = kProcessMouseData();
-
-//         // 키 데이터를 처리
-//         bKeyDataResult = kProcessKeyData();
-
-//         // 윈도우 매니저의 이벤트 큐에 수신된 데이터를 처리, 수신된 모든 이벤트를 처리함
-//         bEventQueueResult = FALSE;
-//         while (kProcessEventQueueData() == TRUE)
-//         {
-//             bEventQueueResult = TRUE;
-//         }
-
-//         // 처리한 데이터가 하나도 없다면 Sleep()을 수행하여 프로세서를 양보함
-//         if ((bMouseDataResult == FALSE) &&
-//             (bKeyDataResult == FALSE) &&
-//             (bEventQueueResult == FALSE))
-//         {
-//             kSleep(0);
-//         }
-//     }
-// }
 
 // 수신된 마우스 데이터를 처리
 BOOL kProcessMouseData(void)
@@ -298,8 +216,8 @@ BOOL kProcessMouseData(void)
             // 테스트를 위해 일시적으로 추가된 부분
             //------------------------------------------------------------------
             // 테스트를 위해 오른쪽 버튼이 눌리면 GUI 태스크를 생성
-            kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, NULL, NULL,
-                (QWORD) kHelloWorldGUITask, TASK_LOADBALANCINGID);
+            // kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, NULL, NULL,
+            //     (QWORD) kHelloWorldGUITask, TASK_LOADBALANCINGID);
         }
         else
         {
