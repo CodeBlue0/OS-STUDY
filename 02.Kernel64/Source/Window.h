@@ -318,4 +318,9 @@ BOOL kGetStartPositionInDrawBitmap(const DRAWBITMAP* pstDrawBitmap,
     int iX, int iY, int* piByteOffset, int* piBitOffset);
 BOOL kIsDrawBitmapAllOff(const DRAWBITMAP* pstDrawBitmap);
 
+BOOL kBitBlt(QWORD qwWindowID, int iX, int iY, COLOR* pstBuffer, int iWidth,
+    int iHeight);
+void kDrawBackgroundImage(void);
+
+
 #endif /*__WINDOW_H__*/
