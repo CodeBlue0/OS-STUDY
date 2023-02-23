@@ -6,6 +6,7 @@
 #include "Synchronization.h"
 #include "MultiProcessor.h"
 #include "MPConfigurationTable.h"
+#include "DynamicMemory.h"
 
 // 스케줄러 관련 자료구조
 static SCHEDULER gs_vstScheduler[MAXPROCESSORCOUNT];
@@ -121,6 +122,14 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     {
         return NULL;
     }
+
+    // 동적 메모리 영역에서 스택 할당
+    pvStackAddress = kAllocateMemory(TASK_STACKSIZE);
+    if (pvStackAddress == NULL)
+    {
+        kFreeTCB(pstTask->stLink.qwID);
+        return NULL;
+    }
     
     // 임계 영역 시작
     kLockForSpinLock(&(gs_vstScheduler[bCurrentAPICID].stSpinLock));
@@ -131,6 +140,7 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     if (pstProcess == NULL)
     {
         kFreeTCB(pstTask->stLink.qwID);
+        kFreeMemory(pvStackAddress);
         // 임계 영역 끝
         kUnlockForSpinLock(&(gs_vstScheduler[bCurrentAPICID].stSpinLock));
         return NULL;
@@ -161,9 +171,9 @@ TCB* kCreateTask(QWORD qwFlags, void* pvMemoryAddress, QWORD qwMemorySize,
     // 임계 영역 끝
     kUnlockForSpinLock(&(gs_vstScheduler[bCurrentAPICID].stSpinLock));
 
-    // 태스크 ID로 스택 어드레스 계산, 하위 32비트가 스택 풀의 오프셋 역할 수행
-    pvStackAddress = (void*) (TASK_STACKPOOLADDRESS + (TASK_STACKSIZE *
-        GETTCBOFFSET(pstTask->stLink.qwID)));
+    // // 태스크 ID로 스택 어드레스 계산, 하위 32비트가 스택 풀의 오프셋 역할 수행
+    // pvStackAddress = (void*) (TASK_STACKPOOLADDRESS + (TASK_STACKSIZE *
+    //     GETTCBOFFSET(pstTask->stLink.qwID)));
 
     // TCB를 설정한 후 준비 리스트에 삽입하여 스케줄링될 수 있도록 함
     kSetUpTask(pstTask, qwFlags, qwEntryPointAddress, pvStackAddress,
@@ -203,18 +213,33 @@ static void kSetUpTask(TCB* pstTCB, QWORD qwFlags, QWORD qwEntryPointAddress,
     *(QWORD *) ((QWORD) pvStackAddress + qwStackSize - 8) = (QWORD) kExitTask;
 
     // 세그먼트 셀렉터 설정
-    pstTCB->stContext.vqRegister[TASK_CSOFFSET] = GDT_KERNELCODESEGMENT;
-    pstTCB->stContext.vqRegister[TASK_DSOFFSET] = GDT_KERNELDATASEGMENT;
-    pstTCB->stContext.vqRegister[TASK_ESOFFSET] = GDT_KERNELDATASEGMENT;
-    pstTCB->stContext.vqRegister[TASK_FSOFFSET] = GDT_KERNELDATASEGMENT;
-    pstTCB->stContext.vqRegister[TASK_GSOFFSET] = GDT_KERNELDATASEGMENT;
-    pstTCB->stContext.vqRegister[TASK_SSOFFSET] = GDT_KERNELDATASEGMENT;
+    // 커널 태스크인 경우는 커널 레벨 세그먼트 디스크립터를 설정
+    if ((qwFlags & TASK_FLAGS_USERLEVEL) == 0)
+    {
+        pstTCB->stContext.vqRegister[TASK_CSOFFSET] = GDT_KERNELCODESEGMENT | SELECTOR_RPL_0;
+        pstTCB->stContext.vqRegister[TASK_DSOFFSET] = GDT_KERNELDATASEGMENT | SELECTOR_RPL_0;
+        pstTCB->stContext.vqRegister[TASK_ESOFFSET] = GDT_KERNELDATASEGMENT | SELECTOR_RPL_0;
+        pstTCB->stContext.vqRegister[TASK_FSOFFSET] = GDT_KERNELDATASEGMENT | SELECTOR_RPL_0;
+        pstTCB->stContext.vqRegister[TASK_GSOFFSET] = GDT_KERNELDATASEGMENT | SELECTOR_RPL_0;
+        pstTCB->stContext.vqRegister[TASK_SSOFFSET] = GDT_KERNELDATASEGMENT | SELECTOR_RPL_0;
+    }
+    // 유저 태스크인 경우는 유저 레벨 세그먼트 디스크립터를 설정
+    else
+    {
+        pstTCB->stContext.vqRegister[TASK_CSOFFSET] = GDT_USERCODESEGMENT | SELECTOR_RPL_3;
+        pstTCB->stContext.vqRegister[TASK_DSOFFSET] = GDT_USERDATASEGMENT | SELECTOR_RPL_3;
+        pstTCB->stContext.vqRegister[TASK_ESOFFSET] = GDT_USERDATASEGMENT | SELECTOR_RPL_3;
+        pstTCB->stContext.vqRegister[TASK_FSOFFSET] = GDT_USERDATASEGMENT | SELECTOR_RPL_3;
+        pstTCB->stContext.vqRegister[TASK_GSOFFSET] = GDT_USERDATASEGMENT | SELECTOR_RPL_3;
+        pstTCB->stContext.vqRegister[TASK_SSOFFSET] = GDT_USERDATASEGMENT | SELECTOR_RPL_3;
+    }
 
     // RIP 레지스터와 인터럽트 플래그 설정
     pstTCB->stContext.vqRegister[TASK_RIPOFFSET] = qwEntryPointAddress;
 
-    // RFLAGS 레지스터의 IF 비트(비트 9)를 1로 설정하여 인터럽트 활성화
-    pstTCB->stContext.vqRegister[TASK_RFLAGSOFFSET] |= 0x0200;
+    // RFLAGS 레지스터의 IF 비트(비트 9)를 1로 설정하여 인터럽트 활성화하고
+    // IOPL 비트(비트 12~13)를 3으로 설정하여 유저 레벨에서도 I/O 포트에 접근할 수 있도록 함
+    pstTCB->stContext.vqRegister[TASK_RFLAGSOFFSET] |= 0x3200;
 
     // ID 및 스택, 그리고 플래그 저장
     pstTCB->pvStackAddress = pvStackAddress;
@@ -1164,8 +1189,12 @@ void kIdleTask(void)
 
                 // 여기까지오면 태스크가 정상적으로 종료된 것이므로 태스크 자료구조(TCB)를 반환
                 qwTaskID = pstTask->stLink.qwID;
+
+                // 스택을 반환
+                kFreeMemory(pstTask->pvStackAddress);
+
+                // 태스크 자료구조를 반환
                 kFreeTCB(qwTaskID);
-                
                 kPrintf("IDLE: Task ID[0x%q] is completely ended.\n", qwTaskID);
             }
         }

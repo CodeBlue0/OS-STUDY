@@ -48,7 +48,8 @@ void kBaseGUITask(void)
 
     // 윈도우 생성 함수 호출, 마우스가 있던 위치를 기준으로 생성
     qwWindowID = kCreateWindow(iMouseX - 10, iMouseY - WINDOW_TITLEBAR_HEIGHT / 2,
-        iWindowWidth, iWindowHeight, WINDOW_FLAGS_DEFAULT, "Hello World Window");
+        iWindowWidth, iWindowHeight, WINDOW_FLAGS_DEFAULT | WINDOW_FLAGS_RESIZABLE,
+        "Hello World Window");
     // 윈도우를 생성하지 못했으면 실패  
     if (qwWindowID == WINDOW_INVALIDID)
     {
@@ -1119,6 +1120,7 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
     JPEG* pstJpeg;
     EVENT stReceivedEvent;
     KEYEVENT* pstKeyEvent;
+    BOOL bExit;
     
     // 초기화
     fp = NULL;
@@ -1131,7 +1133,6 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
     //--------------------------------------------------------------------------
     pstDirectory = opendir("/");
     dwFileSize = 0;
-    kPrintf("start\n");
 
     // 디렉터리에서 파일을 검색
     while (TRUE)
@@ -1141,7 +1142,6 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
         // 더이상 파일이 없으면 나감
         if (pstEntry == NULL)
         {
-            kPrintf("nulldld\n");
             break;
         }
 
@@ -1212,7 +1212,8 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
         qwWindowID = kCreateWindow((stScreenArea.iX2 - pstJpeg->width) / 2,
                     (stScreenArea.iY2 - pstJpeg->height) / 2, pstJpeg->width,
                     pstJpeg->height + WINDOW_TITLEBAR_HEIGHT,
-                    WINDOW_FLAGS_DEFAULT & ~WINDOW_FLAGS_SHOW, pcFileName);
+                    WINDOW_FLAGS_DEFAULT & ~WINDOW_FLAGS_SHOW | WINDOW_FLAGS_RESIZABLE,
+                    pcFileName);
     }
 
     // 윈도우 생성에 실패하거나 출력 버퍼 할당 또는 디코딩에 실패하면 종료
@@ -1241,8 +1242,6 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
 
      // 파일 버퍼를 해제하고 윈도우를 화면에 표시
     kFreeMemory(pbFileBuffer);
-    kFreeMemory(pstJpeg);
-    kFreeMemory(pstOutputBuffer);
     kShowWindow(qwWindowID, TRUE);
 
     //--------------------------------------------------------------------------
@@ -1251,10 +1250,11 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
     // 정상적으로 윈도우를 생성하여 표시했으면 파일 이름 입력 윈도우는 숨김
     kShowWindow(qwMainWindowID, FALSE);
 
-    while (TRUE)
+    bExit = FALSE;
+    while (bExit == FALSE)
     {
         // 이벤트 큐에서 이벤트를 수신
-        if (kReceiveEventFromWindowQueue(qwWindowID, &stReceivedEvent) == FALSE);
+        if (kReceiveEventFromWindowQueue(qwWindowID, &stReceivedEvent) == FALSE)
         {
             kSleep(0);
             continue;
@@ -1266,14 +1266,25 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
             // 키 이벤트를 처리
         case EVENT_KEY_DOWN:
             pstKeyEvent = &(stReceivedEvent.stKeyEvent);
+            
             // ESC 키가 눌리면 그림을 표시하는 윈도우를 삭제하고 파일 이름 입력 윈도우를
             // 표시한 뒤 종료
             if (pstKeyEvent->bASCIICode == KEY_ESC)
             {
                 kDeleteWindow(qwWindowID);
                 kShowWindow(qwMainWindowID, TRUE);
-                return TRUE;
+                bExit = TRUE;
             }
+            break;
+
+            // 윈도우 이벤트 처리
+            // 윈도우 크기 변경 이벤트를 처리
+        case EVENT_WINDOW_RESIZE:
+            // 변경된 윈도우에 디코딩된 이미지를 전송
+            kBitBlt(qwWindowID, 0, WINDOW_TITLEBAR_HEIGHT, pstOutputBuffer,
+                    pstJpeg->width, pstJpeg->height);
+            // 윈도우를 한 번 더 표시하여 윈도우 내부에 전송된 이미지를 화면에 업데이트
+            kShowWindow(qwWindowID, TRUE);
             break;
         
             // 윈도우 이벤트 처리
@@ -1284,7 +1295,7 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
             {
                 kDeleteWindow(qwWindowID);
                 kShowWindow(qwMainWindowID, TRUE);
-                return TRUE;
+                bExit = TRUE;
             }
             break;
 
@@ -1294,5 +1305,10 @@ static BOOL kCreateImageViewerWindowAndExecute(QWORD qwMainWindowID,
             break;
         }
     }
+
+    // JPEG 이미지 파일 디코딩에 사용했던 버퍼를 반환
+    kFreeMemory(pstJpeg);
+    kFreeMemory(pstOutputBuffer);
+    
     return TRUE;
 }

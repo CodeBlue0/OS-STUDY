@@ -118,24 +118,42 @@ void kProcessLoadBalancing(int iIRQ)
 // 공통으로 사용하는 예외 핸들러
 void kCommonExceptionHandler(int iVectorNumber, QWORD qwErrorCode)
 {
-    char vcBuffer[3] = {0, };
+    char vcBuffer[100];
+    BYTE bAPICID;
+    TCB* pstTask;
 
-    // 인터럽트 벡터를 화면 오른쪽 위에 2자리 정수로 출력
-    vcBuffer[0] = '0' + iVectorNumber / 10;
-    vcBuffer[1] = '0' + iVectorNumber % 10;
+    // 현재 예외가 발생한 코어를 반환
+    bAPICID = kGetAPICID();
+    // 현재 코어에서 실행 중인 태스크를 반환
+    pstTask = kGetRunningTask(bAPICID);
 
+    // 메시지 출력
     kPrintStringXY(0, 0, "=================================================");
-    kPrintStringXY(0, 1, " Exception Occur~!!!! ");
-    kPrintStringXY(0, 2, " Vector:           Core ID: ");
-    // 예외 벡터를 화면 오른쪽 위에 두 자리 정수로 출력
-    vcBuffer[0] = '0' + iVectorNumber / 10;
-    vcBuffer[1] = '0' + iVectorNumber % 10;
-    kPrintStringXY(9, 2, vcBuffer);
-    kSPrintf(vcBuffer, "0x%X", kGetAPICID());
-    kPrintStringXY(18, 2, vcBuffer);
-    kPrintStringXY(0, 3, "=================================================");
+    kPrintStringXY(0, 1, "              Exception Occur~!!!! ");
+    // 예외 벡터와 코어 ID, 에러 코드를 출력
+    kSPrintf(vcBuffer, "     Vector:%d        Core ID:0x%X     ErrorCode:0x%X ",
+            iVectorNumber, bAPICID, qwErrorCode);
+    kPrintStringXY(0, 2, vcBuffer);
+    // 태스크 ID를 출력
+    kSPrintf(vcBuffer, "    Task ID:0x%Q", pstTask->stLink.qwID);
+    kPrintStringXY(0, 3, vcBuffer);
+    kPrintStringXY(0, 4, "=================================================");
 
-    while( 1 );
+    // 유저 레벨 태스크는 무한 루프를 수행하지 않고 태스크를 종료시키고 다른 태스크로 전환  
+    if (pstTask->qwFlags & TASK_FLAGS_USERLEVEL)
+    {
+        // 태스크 종료
+        kEndTask(pstTask->stLink.qwID);
+
+        // 무한 루프 수행
+        // kEndTask() 함수에서 다른 태스크로 전환하므로 실제로 여기는 수행되지 않음
+        while (TRUE);
+    }
+    // 커널 레벨이면 무한 루프 수행
+    else
+    {
+        while (TRUE);
+    }
 }
 
 // 공통으로 사용하는 인터럽트 핸들러
