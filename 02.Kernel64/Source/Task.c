@@ -1166,7 +1166,12 @@ void kIdleTask(void)
                     // 프로세스를 종료해야 하므로 할당받은 메모리 영역을 삭제
                     else 
                     {
-                        // TODO: 추후에 삽입
+                        // 유저 레벨 프로세스라면 메뫼를 할당받았을 것이므로 할당받은
+                        // 메모리를 삭제
+                        if (pstTask->qwFlags & TASK_FLAGS_USERLEVEL)
+                        {
+                            kFreeMemory(pstTask->pvMemoryAddress);
+                        }
                     }
                 }
                 else if (pstTask->qwFlags & TASK_FLAGS_THREAD)
