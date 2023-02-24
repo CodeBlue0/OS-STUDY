@@ -55,7 +55,7 @@ DIR* opendir(const char* pcDirectoryName);
 struct dirent* readdir(DIR* pstDirectory);
 BOOL rewinddir(DIR* pstDirectory);
 int closedir(DIR* pstDirectory);
-BOOL IsFileOpened(const dirent* pstEntry);
+BOOL IsFileOpened(const struct dirent* pstEntry);
 
 //========================================================================
 // 하드 디스크 I/O 관련

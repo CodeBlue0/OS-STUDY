@@ -189,6 +189,8 @@ BOOL IsFileOpened(const struct dirent* pstEntry)
 int ReadHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount,
  char* pcBuffer)
 {
+    PARAMETERTABLE stParameter;
+    
     // 파라미터 삽입
     PARAM(0) = (QWORD) bPrimary;
     PARAM(1) = (QWORD) bMaster;

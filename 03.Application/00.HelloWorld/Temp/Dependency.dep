@@ -1,0 +1,2 @@
+Main.o: ../Source/Main.c ../../UserLibrary/Source/UserLibrary.h \
+ ../../UserLibrary/Source/Types.h
