@@ -267,7 +267,7 @@ int kReadHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount,
     BOOL bWaitResult;
 
     // 범위 검사. 최대 256섹터를 처리할 수 있음
-    if ((gs_stHDDManager.bHDDDetected == FALSE) ||
+    if ((gs_stHDDManager.bCanWrite == FALSE) ||
         (iSectorCount <= 0) || (256 < iSectorCount) ||
         ((dwLBA + iSectorCount) >= gs_stHDDManager.stHDDInformation.dwTotalSectors))
     {

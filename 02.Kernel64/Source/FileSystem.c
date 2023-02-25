@@ -912,7 +912,7 @@ static BOOL kFreeClusterUntilEnd(DWORD dwClusterIndex)
 FILE* kOpenFile(const char* pcFileName, const char* pcMode)
 {
     DIRECTORYENTRY stEntry;
-    int iDirectoryOffset;
+    int iDirectoryEntryOffset;
     int iFileNameLength;
     DWORD dwSecondCluster;
     FILE* pstFile;
@@ -931,8 +931,8 @@ FILE* kOpenFile(const char* pcFileName, const char* pcMode)
     //=====================================================================
     // 파일이 먼저 존재하는지 확인하고, 없다면 옵션을 보고 파일을 생성
     //=====================================================================
-    iDirectoryOffset = kFindDirectoryEntry(pcFileName, &stEntry);
-    if (iDirectoryOffset == -1)
+    iDirectoryEntryOffset = kFindDirectoryEntry(pcFileName, &stEntry);
+    if (iDirectoryEntryOffset == -1)
     {
         // 파일이 없다면 읽기(r, r+) 옵션은 실패
         if (pcMode[0] == 'r')
@@ -943,7 +943,7 @@ FILE* kOpenFile(const char* pcFileName, const char* pcMode)
         }
 
         // 나머지 옵션은 파일을 생성
-        if (kCreateFile(pcFileName, &stEntry, &iDirectoryOffset) == FALSE)
+        if (kCreateFile(pcFileName, &stEntry, &iDirectoryEntryOffset) == FALSE)
         {
             // 동기화
             kUnlock(&(gs_stFileSystemManager.stMutex));
@@ -983,7 +983,7 @@ FILE* kOpenFile(const char* pcFileName, const char* pcMode)
 
         // 파일의 내용이 모두 비워졌으므로 크기를 0으로 설정
         stEntry.dwFileSize = 0;
-        if (kSetDirectoryEntryData(iDirectoryOffset, &stEntry) == FALSE)
+        if (kSetDirectoryEntryData(iDirectoryEntryOffset, &stEntry) == FALSE)
         {
             // 동기화
             kUnlock(&(gs_stFileSystemManager.stMutex));
@@ -1005,7 +1005,7 @@ FILE* kOpenFile(const char* pcFileName, const char* pcMode)
 
     // 파일 핸들에 파일 정보를 설정
     pstFile->bType = FILESYSTEM_TYPE_FILE;
-    pstFile->stFileHandle.iDirectoryEntryOffset = iDirectoryOffset;
+    pstFile->stFileHandle.iDirectoryEntryOffset = iDirectoryEntryOffset;
     pstFile->stFileHandle.dwFileSize = stEntry.dwFileSize;
     pstFile->stFileHandle.dwStartClusterIndex = stEntry.dwStartClusterIndex;
     pstFile->stFileHandle.dwCurrentClusterIndex = stEntry.dwStartClusterIndex;
@@ -1105,7 +1105,7 @@ DWORD kReadFile(void* pvBuffer, DWORD dwSize, DWORD dwCount, FILE* pstFile)
     kUnlock(&(gs_stFileSystemManager.stMutex));
 
     // 읽은 바이트 수를 반환
-    return dwReadCount;
+    return (dwReadCount / dwSize);
 }
 
 // 루트 디렉터리에서 디렉터리 엔트리 값을 갱신

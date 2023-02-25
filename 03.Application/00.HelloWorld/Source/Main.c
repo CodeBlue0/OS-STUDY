@@ -1,4 +1,4 @@
-#include "UserLibrary.h"
+#include "MINTOSLibrary.h"
 
 // 응용프로그램이 보내는 유저 이벤트 타입 정의
 #define EVENT_USER_TESTMESSAGE  0x80000001

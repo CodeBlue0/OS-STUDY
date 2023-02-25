@@ -59,7 +59,7 @@ static BOOL kIsSerialTransmitterBufferEmpty(void)
 }
 
 // 시리얼 포트로 데이터를 송신
-void kSendSerialData(BYTE* pbBuffer, int iSize)
+BOOL kSendSerialData(BYTE* pbBuffer, int iSize)
 {
     int iSentByte;
     int iTempSize;
@@ -92,6 +92,7 @@ void kSendSerialData(BYTE* pbBuffer, int iSize)
 
     // 동기화
     kUnlock(&(gs_stSerialManager.stLock));
+    return TRUE;
 }
 
 // 수신 FIFO에 데이터가 있는지를 반환

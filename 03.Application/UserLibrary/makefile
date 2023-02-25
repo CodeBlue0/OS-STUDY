@@ -3,7 +3,7 @@
 #######################################################################################################################
 # 컴파일러와 AR 프로그램의 옵션 정의
 NASM64 = nasm -f elf64
-GCC64 = gcc -c -m64 -ffreestanding -mcmodel=large -fno-pie
+GCC64 = gcc -c -m64 -ffreestanding -mcmodel=large -fno-pie -Wint-conversion
 AR64 = ar rcs
 
 #디렉터리 정의

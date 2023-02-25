@@ -83,7 +83,7 @@ typedef struct kSerialPortManager
 
 // 함수
 void kInitializeSerialPort(void);
-void kSendSerialData(BYTE* pbBuffer, int iSize);
+BOOL kSendSerialData(BYTE* pbBuffer, int iSize);
 int kReceiveSerialData(BYTE* pbBuffer, int iSize);
 void kClearSerialFIFO(void);
 
