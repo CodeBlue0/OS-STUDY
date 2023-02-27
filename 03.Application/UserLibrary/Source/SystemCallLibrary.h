@@ -85,6 +85,7 @@ QWORD CreateThread(QWORD qwEntryPoint, QWORD qwArgument, BYTE bAffinity);
 //====================================================================================
 // GUI 시스템 관련
 //====================================================================================
+void GetScreenArea(RECT* pstScreenArea);
 QWORD CreateWindow(int iX, int iY, int iWidth, int iHeight, DWORD dwFlags,
     const char* pcTitle);
 BOOL DeleteWindow(QWORD qwWindowID);

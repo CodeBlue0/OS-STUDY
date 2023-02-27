@@ -12,6 +12,7 @@
         "ioapic.h": "c",
         "userlibrary.h": "c",
         "mintoslibrary.h": "c",
-        "systemcalllibrary.h": "c"
+        "systemcalllibrary.h": "c",
+        "main.h": "c"
     }
 }

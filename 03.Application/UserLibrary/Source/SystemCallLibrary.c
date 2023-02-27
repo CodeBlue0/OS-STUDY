@@ -156,6 +156,54 @@ int fclose(FILE* pstFile)
     return (BOOL) ExecuteSystemCall(SYSCALL_REWINDDIR, &stParameter); 
 }
 
+int remove(const char* pcFileName)
+{
+    PARAMETERTABLE stParameter;
+    
+    // 파라미터 삽입
+    PARAM(0) = (QWORD) pcFileName;
+
+    // 시스템 콜 호출
+    return (int) ExecuteSystemCall(SYSCALL_REMOVE, &stParameter);          
+}
+
+// 디렉터리를 엶
+DIR* opendir(const char* pcDirectoryName)
+{
+    PARAMETERTABLE stParameter;
+    
+    // 파라미터 삽입
+    PARAM(0) = (QWORD) pcDirectoryName;
+
+    // 시스템 콜 호출
+    return (DIR*) ExecuteSystemCall(SYSCALL_OPENDIR, &stParameter);         
+}
+
+// 디렉터리 엔트리를 반환하고 다음으로 이동
+struct dirent* readdir(DIR* pstDirectory)
+{
+    PARAMETERTABLE stParameter;
+    
+    // 파라미터 삽입
+    PARAM(0) = (QWORD) pstDirectory;
+
+    // 시스템 콜 호출
+    return (struct dirent*) ExecuteSystemCall(SYSCALL_READDIR, 
+                                                               &stParameter);       
+}
+
+// 디렉터리 포인터를 디렉터리의 처음으로 이동
+BOOL rewinddir(DIR* pstDirectory)
+{
+    PARAMETERTABLE stParameter;
+    
+    // 파라미터 삽입
+    PARAM(0) = (QWORD) pstDirectory;
+
+    // 시스템 콜 호출
+    return (BOOL) ExecuteSystemCall(SYSCALL_REWINDDIR, &stParameter);          
+}
+
 // 열린 디렉터리를 닫음
 int closedir(DIR* pstDirectory)
 {
