@@ -4,37 +4,71 @@
 #include "MINTOSLibrary.h"
 
 // 매크로
-// 최대로 표시할 수 있는 라인의 수
-#define MAXLINECOUNT    (256 * 1024)
-// 윈도우 영역과 파일 내용 표시 영역 사이의 여유 공간
-#define MARGIN          5
-// 탭이 차지하는 크기
-#define TABSPACE        4
+// 물방울의 최대 개수
+#define MAXBUBBLECOUNT 50
+// 물방울의 반지름
+#define RADIUS 16
+// 물방울의 기본 속도
+#define DEFAULTSPEED 3
+// 플레이어의 최대 생명
+#define MAXLIFE 20
+
+// 윈도우의 너비와 높이
+#define WINDOW_WIDTH 250
+#define WINDOW_HEIGHT 350
+
+// 게임 정보 영역의 높이
+#define INFORMATION_HEIGHT 20
 
 // 구조체
-// 텍스트 정보를 저장하는 구조체
-typedef struct TextInformationStruct
+// 물방울의 정보를 저장하는 자료구조
+typedef struct BubbleStruct
 {
-    // 파일 버퍼와 파일의 크기
-    BYTE* pbFileBuffer;
-    DWORD dwFileSize;
-    
-    // 파일 내용 표시 영역에 출력할 수 있는 라인 수와 라인별 문자 수
-    int iColumnCount;
-    int iRowCount;
-    // 라인 번호에 따른 파일 오프셋을 저장하는 버퍼
-    DWORD* pdwFileOffsetOfLine;
-    // 파일의 최대 라인 수
-    int iMaxLineCount;
-    // 현재 라인의 인덱스
-    int iCurrentLineIndex;
-    // 파일 이름
-    char vcFileName[100]; 
-} TEXTINFO;
+    // X, Y좌표
+    QWORD qwX;
+    QWORD qwY;
+
+    // 떨어지는 속도(Y축 변화량)
+    QWORD qwSpeed;
+
+    // 물방울 색깔
+    COLOR stColor;
+
+    // 살아 있는지 여부
+    BOOL bAlive;
+} BUBBLE;
+
+// 게임 정보를 저장하는 자료구조
+typedef struct GameInfoStruct
+{
+    //-------------------------------------------------------------------------
+    // 물방울을 관리하는 데 필요한 필드
+    //-------------------------------------------------------------------------
+    // 물방울의 정보를 저장하는 버퍼
+    BUBBLE* pstBubbleBuffer;
+
+    // 살아 있는 물방울의 수
+    int iAliveBubbleCount;
+
+    //-------------------------------------------------------------------------
+    // 게임을 진행하는 데 필요한 필드
+    //-------------------------------------------------------------------------
+    // 플레이어의 생명
+    int iLife;
+
+    // 유저의 점수
+    QWORD qwScore;
+
+    // 게임의 시작 여부
+    BOOL bGameStart;
+} GAMEINFO;
 
 // 함수
-BOOL ReadFileToBuffer(const char* pcFileName, TEXTINFO* pstInfo);
-void CalculateFileOffsetOfLine(int iWidth, int iHeight, TEXTINFO* pstInfo);
-BOOL DrawTextBuffer(QWORD qwWindowID, TEXTINFO* pstInfo);
+BOOL Initialize(void);
+BOOL CreateBubble(void);
+void MoveBubble(void);
+void DeleteBubbleUnderMouse(POINT* pstMouseXY);
+void DrawInformation(QWORD qwWindowID);
+void DrawGameArea(QWORD qwWindowID, POINT* pstMouseXY);
 
 #endif /*__MAIN_H__*/

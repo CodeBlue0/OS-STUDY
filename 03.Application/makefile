@@ -43,10 +43,10 @@ Shooter:
 	@echo ============= Build Shooter ===============
 	@echo 
 
-	make -C 01.TextViewer
+	make -C 02.Shooter
 
 	@echo 
-	@echo =============== Build TextViewer ===============
+	@echo =============== Build Complete ===============
 	@echo 
 
 # 소스 파일을 제외한 나머지 파일 정리	
@@ -54,3 +54,4 @@ clean:
 	make -C UserLibrary clean
 	make -C 00.HelloWorld clean
 	make -C 01.TextViewer clean
+	make -C 02.Shooter clean

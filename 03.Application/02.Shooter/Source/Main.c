@@ -1,425 +1,354 @@
 #include "Main.h"
 
+// 게임 관련 정보를 저장하는 자료구조
+GAMEINFO g_stGameInfo = { 0, };
+
 // 응용프로그램의 C 언어 엔트리 포인트
 int Main(char* pcArgument)
 {
     QWORD qwWindowID;
+    EVENT stEvent;
+    QWORD qwLastTickCount;
+    char* pcStartMessage = "Please LButton Down To Start~!";
+    POINT stMouseXY;
+    RECT stScreenArea;
     int iX;
     int iY;
-    int iWidth;
-    int iHeight;
-    TEXTINFO stInfo;
-    int iMoveLine;
-    EVENT stReceivedEvent;
-    KEYEVENT* pstKeyEvent;
-    WINDOWEVENT* pstWindowEvent;
-    DWORD dwFileOffset;
-    RECT stScreenArea;
 
     //--------------------------------------------------------------------------
-    // 그래픽 모드 판단
+    // 윈도우를 화면 가운데에 가로x세로 250x350 크기로 생성
     //--------------------------------------------------------------------------
-    // MINT64 OS가 그래픽 모드로 시작했는지 확인
-    if (IsGraphicMode() == FALSE)
-    { 
-        // MINT64 OS가 그래픽 모드로 시작하지 않았다면 실패
-        printf("This task can run only GUI mode~!!!\n");
+    GetScreenArea(&stScreenArea);
+    iX = (GetRectangleWidth(&stScreenArea) - WINDOW_WIDTH) / 2;
+    iY = (GetRectangleHeight(&stScreenArea) - WINDOW_HEIGHT) / 2;
+    qwWindowID = CreateWindow(iX, iY, WINDOW_WIDTH, WINDOW_HEIGHT,
+                                WINDOW_FLAGS_DEFAULT, "Bubble Shooter"); 
+    if (qwWindowID == WINDOW_INVALIDID)
+    {
+        printf("Window create fail\n");
         return -1;
     }
-    
+
     //--------------------------------------------------------------------------
-    // 파일의 내용을 파일 버퍼에 저장하고 라인별 파일 오프셋 저장용 버퍼를 생성
+    // 게임에 관련된 정보를 초기화하고 사용할 버퍼를 할당
     //--------------------------------------------------------------------------
-    // 인자에 아무것도 전달되지 않으면 실패
-    if (strlen(pcArgument) == 0)
+    // 마우스 좌표 설정
+    stMouseXY.iX = WINDOW_WIDTH / 2;
+    stMouseXY.iY = WINDOW_HEIGHT / 2;
+
+    // 게임 정보를 초기화
+    if (Initialize() == FALSE)
     {
-        printf("ex) exec textviwer.elf abc.txt\n");
-        return 0;
+        // 초기화에 실패하면 윈도우를 삭제
+        DeleteWindow(qwWindowID);
+        return -1;
     }
 
-    // 파일을 디렉터리에서 찾은 뒤에 파일의 크기만큼 메모리를 할당하여 파일을 저장
-    // 라인별 파일 오프셋을 저장할 버퍼도 같이 생성
-    if (ReadFileToBuffer(pcArgument, &stInfo) == FALSE)
-    {
-        printf( "%s file is not found\n", pcArgument );
-        return 0;
-    }
+    // 난수 초깃값 설정
+    srand(GetTickCount());
 
     //--------------------------------------------------------------------------
-    // 윈도우와 라인 인덱스를 생성한 뒤 첫 번째 라인부터 화면에 출력
+    // 게임 정보와 게임 영역을 출력하고 게임 시작 대기 메시지를 표시
     //--------------------------------------------------------------------------
-    // 윈도우를 화면 가운데에 가로 500픽셀 X 세로 500픽셀로 생성
-    GetScreenArea(&stScreenArea);
-    iWidth = 500;
-    iHeight = 500;
-    iX = (GetRectangleWidth(&stScreenArea) - iWidth) / 2;
-    iY = (GetRectangleHeight(&stScreenArea) - iHeight) / 2;
-    qwWindowID = CreateWindow(iX, iY, iWidth, iHeight, WINDOW_FLAGS_DEFAULT |
-                        WINDOW_FLAGS_RESIZABLE, "Text Viewer");
+    DrawInformation(qwWindowID);
+    DrawGameArea(qwWindowID, &stMouseXY);
+    DrawText(qwWindowID, 5, 150 , RGB(255, 255, 255), RGB(0, 0, 0),
+            pcStartMessage, strlen(pcStartMessage));
 
-    // 라인별 파일 오프셋을 계산하고 현재 화면에 출력하는 라인 인덱스를 0으로 설정
-    CalculateFileOffsetOfLine(iWidth, iHeight, &stInfo);
-    stInfo.iCurrentLineIndex = 0;
-
-    // 현재 라인부터 화면 전체 크기만큼을 표시
-    DrawTextBuffer(qwWindowID, &stInfo);
+    // 출력된 메시지를 화면에 표시
+    ShowWindow(qwWindowID, TRUE);
 
     //--------------------------------------------------------------------------
-    // GUI 태스크의 이벤트 처리 루프
+    // GUI 태스크의 이벤트와 게임 루프를 처리하는 부분
     //--------------------------------------------------------------------------
+    qwLastTickCount = GetTickCount();
     while (TRUE)
     {
-        // 이벤트 큐에서 이벤트 수신
-        if (ReceiveEventFromWindowQueue(qwWindowID, &stReceivedEvent) == FALSE)
+        //----------------------------------------------------------------------
+        // 이벤트 처리 부분
+        //----------------------------------------------------------------------
+        // 이벤트 큐에서 이벤트를 수신
+        if (ReceiveEventFromWindowQueue(qwWindowID, &stEvent) == TRUE)
         {
-            Sleep(0);
-            continue;
+            // 수신된 이벤트를 타입에 따라 나누어 처리
+            switch (stEvent.qwType)
+            {   
+                // 마우스 클릭 처리
+            case EVENT_MOUSE_LBUTTONDOWN:
+                // 게임 시작을 원하는 클릭이면 게임을 시작
+                if (g_stGameInfo.bGameStart == FALSE)
+                {
+                    // 게임 정보를 초기화
+                    Initialize();
+
+                    // 게임 시작 플래그를 설정
+                    g_stGameInfo.bGameStart = TRUE;
+                    break;
+                }
+
+                // 마우스가 클릭된 곳에 있는 물방울을 삭제
+                DeleteBubbleUnderMouse(&(stEvent.stMouseEvent.stPoint));
+
+                // 마우스 위치 저장
+                memcpy(&stMouseXY, &(stEvent.stMouseEvent.stPoint),
+                    sizeof(stMouseXY));
+                break;
+
+                // 마우스 이동 정보
+            case EVENT_MOUSE_MOVE:
+                // 마우스 위치 저장
+                memcpy(&stMouseXY, &(stEvent.stMouseEvent.stPoint),
+                        sizeof(stMouseXY));
+                break;
+
+                // 윈도우 닫기 버튼 처리
+            case EVENT_WINDOW_CLOSE:
+                // 윈도우를 삭제하고 메모리를 해제
+                DeleteWindow(qwWindowID);
+                free(g_stGameInfo.pstBubbleBuffer);
+                return 0;
+                break;
+            }
         }
 
-        // 수신된 이벤트를 타입에 따라 나누어 처리
-        switch (stReceivedEvent.qwType)
+        //----------------------------------------------------------------------
+        // 게임 루프 처리 부분
+        //----------------------------------------------------------------------
+        // 게임이 시작되었다면 50ms마다 생성된 물방울을 아래로 이동
+        if ((g_stGameInfo.bGameStart == TRUE) &&
+            ((GetTickCount() - qwLastTickCount) > 50))
         {
-            // 키 눌림 처리
-        case EVENT_KEY_DOWN:
-            pstKeyEvent = &(stReceivedEvent.stKeyEvent);
-            if (pstKeyEvent->bFlags & KEY_DOWN)
+            qwLastTickCount = GetTickCount();
+
+            // 물방울을 생성
+            if ((rand() % 7) == 1)
             {
-                // 키 값에 따른 현재 라인 변경 값 설정
-                switch (pstKeyEvent->bASCIICode)
-                {
-                    // Page Up 키와 Page Down 키는 화면에 출력 가능한 라인 단위로 이동
-                case KEY_PAGEUP:
-                    iMoveLine = -stInfo.iRowCount;
-                    break;
-                case KEY_PAGEDOWN:
-                    iMoveLine = stInfo.iRowCount;
-                    break;
-                    // Up 키와 Down 키는 한 라인 단위로 이동
-                case KEY_UP:
-                    iMoveLine = -1;
-                    break;
-                case KEY_DOWN:
-                    iMoveLine = 1;
-                    break;
-
-                    // 기타 키나 현재 위치에서 움직일 필요가 없으면 종료
-                default:
-                    iMoveLine = 0;
-                    break;
-                }
-
-                // 최대 최소 라인 범위를 벗어나면 현재 라인 인덱스를 조정
-                if (stInfo.iCurrentLineIndex + iMoveLine < 0)
-                {
-                    iMoveLine = -stInfo.iCurrentLineIndex;
-                }
-                else if (stInfo.iCurrentLineIndex + iMoveLine >= stInfo.iMaxLineCount)
-                {
-                    iMoveLine = stInfo.iMaxLineCount - stInfo.iCurrentLineIndex - 1;
-                }
-
-                // 기타 키이거나 움직일 필요가 없으면 종료
-                if (iMoveLine == 0)
-                {
-                    break;
-                }
-
-                // 현재 라인의 인덱스를 변경하고 화면에 출력
-                stInfo.iCurrentLineIndex += iMoveLine;
-                DrawTextBuffer(qwWindowID, &stInfo);
+                CreateBubble();
             }
-            break;
 
-            // 윈도우 크기 변경 처리
-        case EVENT_WINDOW_RESIZE:
-            pstWindowEvent = &(stReceivedEvent.stWindowEvent);
-            iWidth = GetRectangleWidth(&(pstWindowEvent->stArea));
-            iHeight = GetRectangleHeight(&(pstWindowEvent->stArea));
+            // 물방울을 이동
+            MoveBubble();
 
-            // 현재 라인이 있는 파일 오프셋을 저장
-            dwFileOffset = stInfo.pdwFileOffsetOfLine[stInfo.iCurrentLineIndex];
+            // 게임 영역을 표시
+            DrawGameArea(qwWindowID, &stMouseXY);
 
-            // 변경된 화면 크기로 다시 라인 수와 라인당 문자 수, 파일 오프셋을 계산하고
-            // 이 값과 이전에 저장한 파일 오프셋을 이용하여 현재 라인을 다시 계산
-            CalculateFileOffsetOfLine(iWidth, iHeight, &stInfo);
-            stInfo.iCurrentLineIndex = dwFileOffset / stInfo.iColumnCount;
+            // 게임 정보를 표시
+            DrawInformation(qwWindowID);
 
-            // 현재 라인부터 화면에 출력
-            DrawTextBuffer(qwWindowID, &stInfo);
-            break;
+            // 플레이어의 생명이 0이라면 게임 종료
+            if (g_stGameInfo.iLife <= 0)
+            {
+                g_stGameInfo.bGameStart = FALSE;
 
-            // 윈도우 닫기 버튼 처리
-        case EVENT_WINDOW_CLOSE:
-            // 윈도우를 삭제하고 메모리를 해제
-            DeleteWindow(qwWindowID);
-            free(stInfo.pbFileBuffer);
-            free(stInfo.pdwFileOffsetOfLine);
-            return 0;
-            break;
+                // 게임 종료 메시지를 출력
+                DrawText(qwWindowID, 80, 130, RGB(255, 255, 255), RGB(0, 0, 0),
+                    "Game Over~!!!", 13);
+                DrawText(qwWindowID, 5, 150, RGB(255, 255, 255), RGB(0, 0, 0),
+                    pcStartMessage, strlen(pcStartMessage));
+            }
 
-            // 그 외 정보
-        default:
-            break;
+            // 변경된 윈도우의 내부를 화면에 업데이트
+            ShowWindow(qwWindowID, TRUE);
+        }
+        else
+        {
+            Sleep(0);
         }
     }
 
     return 0;
 }
 
-// 파일을 찾아서 파일의 크기만큼 버퍼를 할당하고 라인별 파일 오프셋 버퍼를 할당한 뒤에
-// 파일의 내용을 읽어서 메모리에 저장
-BOOL ReadFileToBuffer(const char* pcFileName, TEXTINFO* pstInfo)
+// 게임에 관련된 정보를 초기화
+BOOL Initialize(void)
 {
-    DIR* pstDirectory;
-    struct dirent* pstEntry;
-    DWORD dwFileSize;
-    FILE* pstFile;
-    DWORD dwReadSize;
-    
-    //--------------------------------------------------------------------------
-    // 루트 디렉터리를 열어서 파일을 검색
-    //--------------------------------------------------------------------------
-    pstDirectory = opendir("/");
-    dwFileSize = 0;
-
-    // 디렉터리에서 파일을 검색
-    while (TRUE)
+    // 물방울의 최대 개수만큼 메모리를 할당
+    if (g_stGameInfo.pstBubbleBuffer == NULL)
     {
-        // 디렉터리에서 엔트리 하나를 읽음
-        pstEntry = readdir(pstDirectory);
-        // 더 이상 파일이 없으면 나감
-        if (pstEntry == NULL)
+        g_stGameInfo.pstBubbleBuffer = malloc(sizeof(BUBBLE) * MAXBUBBLECOUNT);
+        if (g_stGameInfo.pstBubbleBuffer == NULL)
         {
-            break;
-        }
-
-        // 파일 이름의 길이와 내용이 같은 것을 겁색
-        if ((strlen(pstEntry->d_name) == strlen(pcFileName)) &&
-            (memcmp(pstEntry->d_name, pcFileName, strlen(pcFileName))
-                == 0))
-        {
-            dwFileSize = pstEntry->dwFileSize;
-            break;
+            printf("Memory allocate fail\n");
+            return FALSE;
         }
     }
-    // 디렉터리 핸들을 반환, 핸들을 반환하지 않으면 메모리가 해제되지 않고 남으므로 꼭 해제해야 함
-    closedir(pstDirectory);
 
-    if (dwFileSize == 0)
-    {
-        printf("%s file doesn't exist or size is zero\n",
-            pcFileName);
-        return FALSE;
-    }
+    // 물방울의 정보를 초기화
+    memset(g_stGameInfo.pstBubbleBuffer, 0, sizeof(BUBBLE) *
+            MAXBUBBLECOUNT);
+    g_stGameInfo.iAliveBubbleCount = 0;
 
-    // 파일 이름을 저장
-    memcpy(&(pstInfo->vcFileName), pcFileName, sizeof(pstInfo->vcFileName));
-    pstInfo->vcFileName[sizeof(pstInfo->vcFileName) - 1] = '\0';
+    // 게임이 시작되었다는 정보와 점수, 생명 설정
+    g_stGameInfo.bGameStart = FALSE;
+    g_stGameInfo.qwScore = 0;
+    g_stGameInfo.iLife = MAXLIFE;
 
-    //--------------------------------------------------------------------------
-    // 파일의 전체를 읽을 수 있는 임시 버퍼와 라인별 파일 오프셋을 저장할 버퍼를 할당받아서
-    // 파일의 내용을 모두 저장
-    //--------------------------------------------------------------------------
-    // 라인별로 파일 오프셋을 저장할 버퍼를 할당
-    pstInfo->pdwFileOffsetOfLine = malloc(MAXLINECOUNT * sizeof(DWORD));
-    if (pstInfo->pdwFileOffsetOfLine == NULL)
-    {
-        printf("Memory allocation fail\n");
-        return FALSE;
-    }
-
-    // 파일의 내용을 저장할 버퍼를 할당
-    pstInfo->pbFileBuffer = (BYTE*) malloc(dwFileSize);
-    if (pstInfo->pbFileBuffer == NULL)
-    {
-        printf("Memory %dbytes allocate fail\n", dwFileSize);
-        free(pstInfo->pdwFileOffsetOfLine);
-        return FALSE;
-    }
-
-    // 파일을 열어서 모두 메모리에 저장
-    pstFile = fopen(pcFileName, "r");
-    if ((pstFile != NULL) &&
-        (fread(pstInfo->pbFileBuffer, 1, dwFileSize, pstFile) == dwFileSize))
-    {
-        fclose(pstFile);
-        printf("%s file read success\n", pcFileName);
-    }
-    else
-    {
-        printf("%s file read fail\n", pcFileName);
-        free(pstInfo->pdwFileOffsetOfLine);
-        free(pstInfo->pbFileBuffer);
-        fclose(pstFile);
-        return FALSE;
-    }
-
-    // 파일의 크기 저장
-    pstInfo->dwFileSize = dwFileSize;
     return TRUE;
 }
 
-// 파일 버퍼의 내용을 분석하여 라인별 파일 오프셋을 계산
-void CalculateFileOffsetOfLine(int iWidth, int iHeight, TEXTINFO* pstInfo)
+// 물방울을 생성
+BOOL CreateBubble(void)
 {
-    DWORD i;
-    int iLineIndex;
-    int iColumnIndex;
-    
-    // 여유 공간과 제목 표시줄의 높이를 고려해서 라인별 문자 수와 출력할 수 있는 라인 수를 계산
-    pstInfo->iColumnCount = (iWidth - MARGIN * 2) / FONT_ENGLISHWIDTH;
-    pstInfo->iRowCount = (iHeight - (WINDOW_TITLEBAR_HEIGHT * 2) - 
-        (MARGIN * 2)) / FONT_ENGLISHHEIGHT;
+    BUBBLE* pstTarget;
+    int i;
 
-    // 파일의 처음부터 끝까지 라인 번호를 계산해서 파일 오프셋을 저장
-    iLineIndex = 0;
-    iColumnIndex = 0;
-    pstInfo->pdwFileOffsetOfLine[0] = 0;
-    for (i = 0; i < pstInfo->dwFileSize; i++)
+    // 물방울의 최대 개수와 살아 있는 물방울의 개수를 비교하여 생성할지 여부를 경정
+    if (g_stGameInfo.iAliveBubbleCount >= MAXBUBBLECOUNT)
     {
-        // 라인 피드 문자는 무시
-        if (pstInfo->pbFileBuffer[i] == '\r')
-        {
-            continue;
-        }
-        else if (pstInfo->pbFileBuffer[i] == '\t')
-        {
-            // 탭 문자이면 탭 문자의 크기 단위로 출력할 오프셋을 변경
-            iColumnIndex = iColumnIndex + TABSPACE;
-            iColumnIndex -= iColumnIndex % TABSPACE;
-        }
-        else
-        {
-            iColumnIndex++;
-        }
-        
-        // 출력할 위치가 라인별 문자 수를 넘거나 탭 문자를 출력할 공간이 없는 경우,
-        // 또는 줄바꿈 문자가 검출되면 라인 변경
-        if ((iColumnIndex >= pstInfo->iColumnCount) || 
-            (pstInfo->pbFileBuffer[i] == '\n'))
-        {
-            iLineIndex++;
-            iColumnIndex = 0;
+        return FALSE;
+    }
 
-            // 라인 인덱스 버퍼에 오프셋 삽입
-            if (i + 1 < pstInfo->dwFileSize)
+    // 빈 물방울 자료구조를 검색
+    for (i = 0; i < MAXBUBBLECOUNT; i++)
+    {
+        // 물방울이 살아 있지 않으면 다시 할당해서 사용
+        if (g_stGameInfo.pstBubbleBuffer[i].bAlive == FALSE)
+        {
+            // 선택된 물방울 자료구조
+            pstTarget = &(g_stGameInfo.pstBubbleBuffer[i]);
+
+            // 물방울이 살아 있다고 설정하고 물방울의 이동 속도를 초기화
+            pstTarget->bAlive = TRUE;
+            pstTarget->qwSpeed = (rand() % 8) + DEFAULTSPEED;
+
+            // X좌표와 Y좌표는 물방울이 게임 영역 내부에 위치하도록 설정
+            pstTarget->qwX = rand() % (WINDOW_WIDTH - 2 * RADIUS) + RADIUS;
+            pstTarget->qwY = INFORMATION_HEIGHT + WINDOW_TITLEBAR_HEIGHT + RADIUS + 1;
+
+            // 물방울의 색깔 지정
+            pstTarget->stColor = RGB(rand() % 256, rand() % 256, rand() % 256);
+
+            // 살아 있는 물방울의 수를 증가
+            g_stGameInfo.iAliveBubbleCount++;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+// 물방울을 이동
+void MoveBubble(void)
+{
+    BUBBLE* pstTarget;
+    int i;
+
+    // 살아 있는 모든 물방울을 이동
+    for (i = 0; i < MAXBUBBLECOUNT; i++)
+    {
+        // 물방울이 살아 있으면 이동
+        if (g_stGameInfo.pstBubbleBuffer[i].bAlive == TRUE)
+        {
+            // 현재 물방울 자료구조
+            pstTarget = &(g_stGameInfo.pstBubbleBuffer[i]);
+
+            // 물방울의 Y좌표에 이동 속도를 더함
+            pstTarget->qwY += pstTarget->qwSpeed;
+
+            // 게임 영역 끝에 닿으면 물방울을 제거하고 플레이어가 물방울을 막지 못했으므로
+            // 생명을 하나 줄임
+            if ((pstTarget->qwY + RADIUS) >= WINDOW_HEIGHT)
             {
-                pstInfo->pdwFileOffsetOfLine[iLineIndex] = i + 1;
+                pstTarget->bAlive = FALSE;
+
+                // 살아 있는 물방울의 수를 줄이고 생명도 하나 줄임
+                g_stGameInfo.iAliveBubbleCount--;
+                if (g_stGameInfo.iLife > 0)
+                {
+                    g_stGameInfo.iLife--;
+                }
             }
+        }
+    }
+}
 
-            // 텍스트 뷰어가 지원하는 최대 라인 수를 넘어서면 종료
-            if (iLineIndex >= MAXLINECOUNT)
+// 마우스 아래에 있는 물방울을 삭제하고 점수를 증가
+void DeleteBubbleUnderMouse(POINT* pstMouseXY)
+{
+    BUBBLE* pstTarget;
+    int i;
+    QWORD qwDistance;
+
+    // 살아 있는 모든 물방울을 검색하여 마우스 아래에 있는 물방울을 제거
+    for (i = MAXBUBBLECOUNT - 1; i >= 0; i--)
+    {
+        // 물방울이 살아 있으면 거리를 계산해서 삭제 여부를 결정
+        if (g_stGameInfo.pstBubbleBuffer[i].bAlive == TRUE)
+        {
+            // 현재 물방울 자료구조
+            pstTarget = &(g_stGameInfo.pstBubbleBuffer[i]);
+
+            // 마우스가 클릭된 위치와 원의 중심이 반지름 거리 안쪽이면 삭제
+            qwDistance = ((pstMouseXY->iX - pstTarget->qwX) *
+                            (pstMouseXY->iX - pstTarget->qwX)) +
+                        ((pstMouseXY->iY - pstTarget->qwY) *
+                            (pstMouseXY->iY - pstTarget->qwY));
+
+            // 물방울의 중심과 마우스 클릭 위치 사이의 거리를 물방울 반지름과 비교해
+            // 작다면 물방울 내부에 클릭된 것이므로 삭제
+            if (qwDistance < (RADIUS * RADIUS))
             {
+                pstTarget->bAlive = FALSE;
+
+                // 살아 있는 물방울의 수를 줄이고 점수를 증가
+                g_stGameInfo.iAliveBubbleCount--;
+                g_stGameInfo.qwScore++;
                 break;
             }
         }
     }
-
-    // 가장 마지막 라인 번호를 저장
-    pstInfo->iMaxLineCount = iLineIndex;
 }
 
-// 윈도우 화면 버퍼에 현재 라인부터 화면에 출력
-BOOL DrawTextBuffer(QWORD qwWindowID, TEXTINFO* pstInfo)
+// 게임 정보를 화면에 출력
+void DrawInformation(QWORD qwWindowID)
 {
-    DWORD i;
-    DWORD j;
-    DWORD dwBaseOffset;
-    BYTE bTemp;
-    int iXOffset;
-    int iYOffset;
-    int iLineCountToPrint;
-    int iColumnCountToPrint;
-    char vcBuffer[100];
-    RECT stWindowArea;
+    char vcBuffer[200];
     int iLength;
-    int iWidth;
-    int iColumnIndex;
 
-    // 좌표의 기준값
-    iXOffset = MARGIN;
-    iYOffset = WINDOW_TITLEBAR_HEIGHT;
-    GetWindowArea(qwWindowID, &stWindowArea);
-
-    //--------------------------------------------------------------------------
-    // 파일 정보 표시 영역에 정보를 출력
-    //--------------------------------------------------------------------------
-    // 파일 이름과 현재 라인, 전체 라인 수를 출력
-    iWidth = GetRectangleWidth(&stWindowArea);
-    DrawRect(qwWindowID, 2, iYOffset, iWidth - 3, WINDOW_TITLEBAR_HEIGHT * 2,
-            RGB(55, 215, 47), TRUE);
-    // 임시 버퍼에 정보를 저장
-    sprintf(vcBuffer, "File: %s, Line: %d/%d\n", pstInfo->vcFileName,
-            pstInfo->iCurrentLineIndex + 1, pstInfo->iMaxLineCount);
+    // 게임 정보 영역을 표시
+    DrawRect(qwWindowID, 1, WINDOW_TITLEBAR_HEIGHT - 1, WINDOW_WIDTH - 2,
+        WINDOW_TITLEBAR_HEIGHT + INFORMATION_HEIGHT, RGB(55, 215, 47), TRUE);
+    
+    // 임시 버퍼에 출력할 정보를 저장
+    sprintf(vcBuffer, "Life: %d, Score: %d\n", g_stGameInfo.iLife,
+        g_stGameInfo.qwScore);
     iLength = strlen(vcBuffer);
-    // 저장된 정보를 파일 정보 표시 영역의 가운데에 출력
-    DrawText(qwWindowID, (iWidth - iLength * FONT_ENGLISHWIDTH) / 2,
-            WINDOW_TITLEBAR_HEIGHT + 2, RGB(255, 255, 255), RGB(55, 215, 47),
-            vcBuffer, strlen(vcBuffer));
 
-    //--------------------------------------------------------------------------
-    // 파일 내용 표시 영역에 파일 내용을 출력
-    //--------------------------------------------------------------------------
-    // 데이터를 출력할 부분을 모두 흰색으로 덮어쓴 뒤에 라인을 출력
-    iYOffset = (WINDOW_TITLEBAR_HEIGHT * 2) + MARGIN;
-    DrawRect(qwWindowID, iXOffset, iYOffset, iXOffset + FONT_ENGLISHWIDTH *
-        pstInfo->iColumnCount, iYOffset + FONT_ENGLISHHEIGHT * pstInfo->iRowCount,
-        RGB(255, 255, 255), TRUE);
+    // 저장된 정보를 게임 정보 표시 영역의 가운데에 출력
+    DrawText(qwWindowID, (WINDOW_WIDTH - iLength * FONT_ENGLISHWIDTH) / 2,
+        WINDOW_TITLEBAR_HEIGHT + 2, RGB(255, 255, 255), RGB(55, 215, 47),
+        vcBuffer, strlen(vcBuffer));
+}
 
-    //--------------------------------------------------------------------------
-    // 루프를 수행하면서 라인 단위로 화면에 출력
-    //--------------------------------------------------------------------------
-    // 현재 라인에서 남은 라인 수와 한 화면에 출력할 수 있는 라인 수를 비교하여 작은 것을 선택
-    iLineCountToPrint = MIN(pstInfo->iRowCount, 
-        (pstInfo->iMaxLineCount - pstInfo->iCurrentLineIndex));
-    for (j = 0; j < iLineCountToPrint; j++)
+// 게임 영역에 물방울을 표시
+void DrawGameArea(QWORD qwWindowID, POINT* pstMouseXY)
+{
+    BUBBLE* pstTarget;
+    int i;
+
+    // 게임 영역의 배경을 초기화
+    DrawRect(qwWindowID, 0, WINDOW_TITLEBAR_HEIGHT + INFORMATION_HEIGHT,
+        WINDOW_WIDTH - 1, WINDOW_HEIGHT - 1, RGB(0, 0, 0), TRUE);
+
+    // 살아 있는 모든 물방울을 표시
+    for (i = 0; i < MAXBUBBLECOUNT; i++)
     {
-        // 출력할 라인의 파일 오프셋
-        dwBaseOffset = pstInfo->pdwFileOffsetOfLine[pstInfo->iCurrentLineIndex + j];
-
-        //----------------------------------------------------------------------
-        // 루프를 수행하면서 현재 라인에 문자를 출력
-        //----------------------------------------------------------------------
-        // 현재 라인에서 남은 문자 수와 한 라인에 출력할 수 있는 문자 수를 비교하여 작은 것을 선택
-        iColumnCountToPrint = MIN(pstInfo->iColumnCount,
-            (pstInfo->dwFileSize - dwBaseOffset));
-        iColumnIndex = 0;
-        for (i = 0; (i < iColumnCountToPrint) &&
-                    (iColumnIndex < pstInfo->iColumnCount); i++)
+        // 물방울이 살아 있으면 화면에 표시
+        if (g_stGameInfo.pstBubbleBuffer[i].bAlive == TRUE)
         {
-            bTemp = pstInfo->pbFileBuffer[i + dwBaseOffset];
+            // 현재 물방울 자료구조
+            pstTarget = &(g_stGameInfo.pstBubbleBuffer[i]);
 
-            // 줄바꿈 문자가 보이면 종료
-            if (bTemp == '\n')
-            {
-                break;
-            }
-            // 탭 문자이면 탭 문자의 크기 단위로 출력할 오프셋을 변경
-            else if (bTemp == '\t')
-            {
-                // 탭 문자가 차지하는 영역 단위로 출력할 오프셋을 정렬
-                iColumnIndex = iColumnIndex + TABSPACE;
-                iColumnIndex % iColumnIndex % TABSPACE;
-            }
-            // 라인 피드 문자면 무시
-            else if (bTemp == '\r')
-            {
-                // Nothing
-            }
-            // 기타 문자는 화면에 출력
-            else 
-            {
-                // 출력할 위치에 문자를 출력하고 다음 위치로 이동
-                DrawText(qwWindowID, iColumnIndex * FONT_ENGLISHWIDTH + iXOffset,
-                    iYOffset + (j * FONT_ENGLISHHEIGHT), RGB(0, 0, 0),
-                    RGB(255, 255, 255), &bTemp, 1);
-                iColumnIndex++;
-            }
+            // 물방울의 내부와 외부를 그림
+            DrawCircle(qwWindowID, pstTarget->qwX, pstTarget->qwY, RADIUS,
+                pstTarget->stColor, TRUE);
+            DrawCircle(qwWindowID, pstTarget->qwX, pstTarget->qwY, RADIUS,
+                ~pstTarget->stColor, FALSE);
         }
     }
 
-    // 윈도우 전체를 갱신하여 변경된 화면을 업데이트
-    ShowWindow(qwWindowID, TRUE);
-
-    return TRUE;
+    // 마우스가 있는 위치를 검사하여 조준선 표시
+    if (pstMouseXY->iY < (WINDOW_TITLEBAR_HEIGHT + RADIUS))
+    {
+        pstMouseXY->iY = WINDOW_TITLEBAR_HEIGHT + RADIUS;
+    }
 }
