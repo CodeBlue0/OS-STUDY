@@ -57,5 +57,11 @@ BOOL kGetOverlappedRectangle(const RECT* pstArea1, const RECT* pstArea2,
     RECT* pstIntersection);
 BOOL kIsRectangleOverlapped(const RECT* pstArea1,
     const RECT* pstArea2);
+void kInternalDrawEnglishText(const RECT* pstMemoryArea, COLOR* pstMemoryAddress,
+    int iX, int iY, COLOR stTextColor, COLOR stBackgroundColor,
+    const char* pcString, int iLength);
+void kInternalDrawHangulText(const RECT* pstMemoryArea, COLOR* pstMemoryAddress,
+    int iX, int iY, COLOR stTextColor, COLOR stBackgroundColor,
+    const char* pcString, int iLength);
 
 #endif
