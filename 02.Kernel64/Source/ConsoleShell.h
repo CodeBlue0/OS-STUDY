@@ -7,6 +7,11 @@
 #define CONSOLESHELL_MAXCOMMANDBUFFERCOUNT 300
 #define CONSOLESHELL_PROMPTMESSAGE "CodeBlue64> "
 
+// 패키지의 시그너처
+#define PACKAGESIGNATURE    "MINT64OSPACKAGE "
+// 파일 이름의 최대 길이, 커널의 FILESYSTEM_MAXFILENAMELENGTH와 같음
+#define MAXFILENAMELENGTH   24
+
 // 문자열 포인터를 파라미터로 받는 함수 포인터 타입 정의
 typedef void ( *CommandFunction ) ( const char* pcParameter );
 
@@ -35,6 +40,26 @@ typedef struct kParameterListStruct
     // 현재 처리할 파라미터가 시작하는 위치
     int iCurrentPosition;
 } PARAMETERLIST;
+
+// 패키지 헤더 내부의 각 파일 정보를 구성하는 자료구조
+typedef struct PackageItemStruct
+{
+    // 파일 이름
+    char vcFileName[MAXFILENAMELENGTH];
+    // 파일의 크기
+    DWORD dwFileLength;
+} PACKAGEITEM;
+
+// 패키지 헤더 자료구조
+typedef struct PackageHeaderStruct
+{
+    // MINT64 OS의 패키지 파일을 나타내는 시그너처
+    char vcSignature[16];
+    // 패키지 헤더의 전체 크기
+    DWORD dwHeaderSize;
+    // 패키지 아이템의 시작 위치
+    PACKAGEITEM vstItem[0];
+} PACKAGEHEADER;
 
 #pragma pack(pop)
 
@@ -98,6 +123,7 @@ static void kChangeTaskAffinity(const char* pcParameterBuffer);
 static void kShowVBEModeInfo(const char* pcParameterBuffer);
 static void kTestSystemCall(const char* pcParameterBuffer);
 static void kExecuteApplicationProgram(const char* pcParameterBuffer);
+static void kInstallPackage(const char* pcParameterBuffer);
 
 QWORD kRandom(void);
 

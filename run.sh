@@ -15,7 +15,11 @@
 # qemu-system-x86_64 -L . -m 64 -fda ./Disk.img -hda ./HDD.img -boot a -M pc -serial tcp::4444,server,nowait -smp 16,sockets=16
 
 # Multi Core, RAM
-qemu-system-x86_64 -L . -m 64 -fda ./Disk.img -boot a -M pc -serial tcp::4444,server,nowait -smp 2,sockets=2
+# qemu-system-x86_64 -L . -m 64 -fda ./Disk.img -boot a -M pc -serial tcp::4444,server,nowait -smp 2,sockets=2
+
+# final
+qemu-system-x86_64 -L . -m 64 -fda ./DiskWithPackage.img -boot a -M pc -serial tcp::4444,server,nowait -smp 2,sockets=2
+
 
 ### for debug
 ###qemu-system-x86_64 -L . -m 64 -fda ./Disk.img -M pc -S -s
